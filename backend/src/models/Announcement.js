@@ -1,0 +1,22 @@
+import mongoose from 'mongoose';
+
+const announcementSchema = new mongoose.Schema(
+  {
+    title: { type: String, required: true, trim: true },
+    content: { type: String, required: true },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    isPinned: { type: Boolean, default: false },
+    isActive: { type: Boolean, default: true },
+    readBy: [
+      {
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        readAt: { type: Date, default: new Date() }
+      }
+    ]
+  },
+  { timestamps: true }
+);
+
+announcementSchema.index({ createdBy: 1, isPinned: -1, createdAt: -1 });
+
+export const Announcement = mongoose.model('Announcement', announcementSchema);
