@@ -1,0 +1,14 @@
+{
+  "name": "forgetrack",
+  "private": true,
+  "scripts": {
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "dev": "concurrently \"npm run dev-backend\" \"npm run dev-frontend\"",
+    "dev-backend": "cd backend && npm run dev",
+    "dev-frontend": "cd frontend && npm run dev",
+    "init-mentor": "cd backend && node scripts/createMentor.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

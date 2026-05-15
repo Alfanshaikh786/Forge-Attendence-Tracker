@@ -1,0 +1,4 @@
+-- Seed data removed.
+-- Students are added by mentors via the API (/api/mentor/students).
+-- Sessions are created via the API (/api/mentor/sessions).
+-- Attendance is marked via the API (/api/mentor/attendance).
