@@ -178,10 +178,66 @@ router.post('/students/:id/reset-password', requireAuth, requireMentor, async (r
   }
 });
 
+// POST /api/mentor/bulk-import-students - Bulk add students
+router.post('/bulk-import-students', requireAuth, requireMentor, async (req, res) => {
+  try {
+    const { students } = req.body;
+    if (!students || !Array.isArray(students)) {
+      return res.status(400).json({ error: 'Students array required' });
+    }
+
+    let imported = 0;
+    let skipped = 0;
+
+    for (const s of students) {
+      const { fullName, usn, email, department, batchYear } = s;
+      if (!fullName || !usn || !email) {
+        skipped++;
+        continue;
+      }
+
+      try {
+        // Check if USN or Email already exists
+        const existing = await query('SELECT id FROM public.students WHERE usn = $1 OR email = $2', [usn.toUpperCase(), email.toLowerCase()]);
+        if (existing.rows.length > 0) {
+          skipped++;
+          continue;
+        }
+
+        // Default password is usn
+        const passwordHash = await bcrypt.hash(String(usn), 12);
+        
+        // 1. Insert student
+        const studentResult = await query(
+          'INSERT INTO public.students (name, usn, email, branch_code, batch) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+          [fullName, usn.toUpperCase(), email.toLowerCase(), department || 'GENERAL', batchYear || '2024-2028']
+        );
+        const studentId = studentResult.rows[0].id;
+
+        // 2. Insert user
+        const userId = uuidv4();
+        await query(
+          'INSERT INTO public.users (id, email, role, display_name, student_id, password_hash) VALUES ($1, $2, $3, $4, $5, $6)',
+          [userId, email.toLowerCase(), 'student', fullName, studentId, passwordHash]
+        );
+        imported++;
+      } catch (err) {
+        console.error(`Failed to import student ${usn}:`, err);
+        skipped++;
+      }
+    }
+
+    return res.json({ success: true, imported, skipped });
+  } catch (error) {
+    console.error('Error in bulk student import:', error);
+    return res.status(500).json({ error: 'Failed to import students' });
+  }
+});
+
 // POST /api/mentor/add-student - Add a new student
 router.post('/add-student', requireAuth, requireMentor, async (req, res) => {
   try {
-    const { fullName, usn, email, department, batchYear, password, confirmPassword } = req.body;
+    const { fullName, usn, email, department, batchYear, password } = req.body;
 
     if (!fullName || !usn || !email || !department || !batchYear || !password) {
       return res.status(400).json({ error: 'Missing required fields' });

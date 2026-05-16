@@ -83,6 +83,13 @@ export async function addStudent(studentData) {
   });
 }
 
+export async function bulkImportStudents(students) {
+  return apiRequest('/mentor/bulk-import-students', {
+    method: 'POST',
+    body: JSON.stringify({ students }),
+  });
+}
+
 export async function removeStudent(studentId) {
   return apiRequest(`/mentor/students/${studentId}`, {
     method: 'DELETE',

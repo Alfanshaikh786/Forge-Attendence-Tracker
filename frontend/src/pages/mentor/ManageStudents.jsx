@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, Download, Trash2, Edit2, Users, Loader2, Shield } from 'lucide-react';
+import { Plus, Search, Download, Trash2, Edit2, Users, Loader2, Shield, Upload } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import { CyberCard } from '../../components/ui/CyberCard';
@@ -7,6 +7,7 @@ import { CyberTable } from '../../components/ui/CyberTable';
 import { CyberBackground } from '../../components/ui/CyberBackground';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { AddStudentModal } from '../../components/ui/AddStudentModal';
+import { BulkStudentModal } from '../../components/ui/BulkStudentModal';
 import { useAuth } from '../../context/AuthContext';
 import { getStudents, removeStudent } from '../../lib/api';
 import gsap from 'gsap';
@@ -18,6 +19,7 @@ export function ManageStudents() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [addModalInitial, setAddModalInitial] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -113,6 +115,14 @@ export function ManageStudents() {
           </section>
 
           <div className="flex gap-3 w-full lg:w-auto">
+            <Button
+              variant="secondary"
+              onClick={() => setIsBulkModalOpen(true)}
+              className="flex-1 lg:flex-none border-cyber-neon/30 text-cyber-neon hover:bg-cyber-neon/5"
+            >
+              <Upload size={18} />
+              BULK IMPORT
+            </Button>
             <Button
               variant="secondary"
               onClick={handleExportCSV}
@@ -337,6 +347,12 @@ export function ManageStudents() {
           initialData={addModalInitial}
           onClose={() => { setIsAddModalOpen(false); setAddModalInitial(null); }}
           onSuccess={() => { fetchStudents(); setAddModalInitial(null); }}
+        />
+
+        <BulkStudentModal
+          isOpen={isBulkModalOpen}
+          onClose={() => setIsBulkModalOpen(false)}
+          onSuccess={fetchStudents}
         />
       </div>
     </>
