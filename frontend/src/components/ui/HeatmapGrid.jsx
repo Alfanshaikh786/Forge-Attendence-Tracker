@@ -57,8 +57,8 @@ export const HeatmapGrid = ({ data = [], month, year, onMonthChange }) => {
         {data.map((day, idx) => {
           const isVisible = idx < visibleCells;
           const statusStyles = {
-            present: 'bg-success/20 border border-success/30',
-            absent: 'bg-danger/20 border border-danger/30',
+            present: 'bg-[#00ff00] shadow-[0_0_8px_rgba(0,255,0,0.4)] border-none',
+            absent: 'bg-[#ff00ff] shadow-[0_0_8px_rgba(255,0,255,0.4)] border-none',
             none: 'bg-surface-raised border border-border-subtle',
             future: 'bg-surface-inset border border-border-subtle opacity-30',
             pad: 'bg-transparent border-transparent',
@@ -79,6 +79,21 @@ export const HeatmapGrid = ({ data = [], month, year, onMonthChange }) => {
             />
           );
         })}
+      </div>
+
+      <div className="flex items-center gap-4 mt-2 text-[9px] sm:text-[10px] font-bold text-fg-tertiary uppercase tracking-wider">
+        <div className="flex items-center gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-sm bg-[#00ff00] shadow-[0_0_8px_rgba(0,255,0,0.4)]"></div>
+          <span>Present</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-sm bg-[#ff00ff] shadow-[0_0_8px_rgba(255,0,255,0.4)]"></div>
+          <span>Absent</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-sm bg-surface-raised border border-border-subtle"></div>
+          <span>No Class</span>
+        </div>
       </div>
     </div>
   );
