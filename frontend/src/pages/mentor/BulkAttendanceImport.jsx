@@ -341,11 +341,12 @@ export default function BulkAttendanceImport() {
             <select
               value={selectedSubjectId}
               onChange={(e) => setSelectedSubjectId(e.target.value)}
-              className="w-full bg-surface-inset border border-border-subtle rounded-xl px-4 py-3 text-fg-primary focus:border-accent outline-none transition-all appearance-none cursor-pointer"
+              className="w-full bg-[#0a0a0f] border border-border-subtle rounded-xl px-4 py-3 text-white focus:border-accent outline-none transition-all cursor-pointer"
+              style={{ colorScheme: 'dark' }}
             >
-              <option value="">General / Daily Attendance</option>
+              <option value="" className="bg-[#0a0a0f] text-white">General / Daily Attendance</option>
               {subjects.map(sub => (
-                <option key={sub.id} value={sub.id}>
+                <option key={sub.id} value={sub.id} className="bg-[#0a0a0f] text-white">
                   {sub.name} ({sub.code})
                 </option>
               ))}

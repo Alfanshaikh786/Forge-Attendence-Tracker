@@ -190,12 +190,12 @@ export default function MarkAttendance() {
             <select
               value={selectedSubjectId}
               onChange={(e) => setSelectedSubjectId(e.target.value)}
-              className="w-full bg-cyber-bg border border-cyber-neon/40 rounded px-3 py-2 text-cyber-neon font-mono text-sm focus:border-cyber-neon outline-none transition-all appearance-none cursor-pointer"
-              style={{ backgroundImage: 'linear-gradient(45deg, transparent 50%, #00ff00 50%), linear-gradient(135deg, #00ff00 50%, transparent 50%)', backgroundPosition: 'calc(100% - 20px) calc(1em + 2px), calc(100% - 15px) calc(1em + 2px)', backgroundSize: '5px 5px, 5px 5px', backgroundRepeat: 'no-repeat' }}
+              className="w-full bg-[#0a0a0f] border border-cyber-neon/40 rounded px-3 py-2 text-cyber-neon font-mono text-sm focus:border-cyber-neon outline-none transition-all cursor-pointer"
+              style={{ colorScheme: 'dark' }}
             >
-              <option value="" className="bg-cyber-bg text-cyber-text">General Attendance</option>
+              <option value="" className="bg-[#0a0a0f] text-white">General Attendance</option>
               {subjects.map(sub => (
-                <option key={sub.id} value={sub.id} className="bg-cyber-bg text-cyber-text">
+                <option key={sub.id} value={sub.id} className="bg-[#0a0a0f] text-white">
                   [{sub.code}] {sub.name}
                 </option>
               ))}
