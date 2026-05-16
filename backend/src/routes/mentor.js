@@ -468,8 +468,12 @@ router.get('/sessions/:date', requireAuth, requireMentor, async (req, res) => {
     let sessionResult = await query(queryText, params);
     
     if (sessionResult.rows.length === 0) {
-      // For auto-creation, subjectId is now mandatory
-      const insertText = 'INSERT INTO public.sessions (date, topic, month_number, subject_id) VALUES ($1, $2, $3, $4) RETURNING *';
+      // Use ON CONFLICT to prevent race conditions during auto-creation
+      const insertText = `
+        INSERT INTO public.sessions (date, topic, month_number, subject_id) 
+        VALUES ($1, $2, $3, $4) 
+        ON CONFLICT (date, subject_id) DO UPDATE SET date = EXCLUDED.date
+        RETURNING *`;
       const insertParams = [sessionDate, 'New Session', new Date(date).getMonth() + 1, subjectId];
       sessionResult = await query(insertText, insertParams);
     }
@@ -634,20 +638,32 @@ router.get('/subjects/:id/students', requireAuth, requireMentor, requireSubjectA
   try {
     const { id } = req.params;
     const studentsRes = await query(`
-      SELECT DISTINCT s.id, s.name as "fullName", s.usn, s.branch_code as "department",
-             AVG(CASE WHEN a.present THEN 100 ELSE 0 END) as "attendancePercentage"
+      WITH subject_sessions AS (
+        SELECT id FROM public.sessions WHERE subject_id = $1 AND date <= CURRENT_DATE
+      )
+      SELECT 
+        s.id, 
+        s.name as "fullName", 
+        s.usn, 
+        s.branch_code as "department",
+        (SELECT COUNT(*) FROM subject_sessions) as total,
+        COUNT(a.id) FILTER (WHERE a.present = true) as present
       FROM public.students s
-      JOIN public.attendance a ON s.id = a.student_id
-      JOIN public.sessions ses ON a.session_id = ses.id
-      WHERE ses.subject_id = $1
+      LEFT JOIN public.attendance a ON s.id = a.student_id AND a.session_id IN (SELECT id FROM subject_sessions)
+      WHERE s.is_active = true
       GROUP BY s.id
       ORDER BY s.name ASC
     `, [id]);
     
-    return res.json({ students: studentsRes.rows.map(s => ({
-      ...s,
-      attendancePercentage: Math.round(parseFloat(s.attendancePercentage))
-    })) });
+    return res.json({ students: studentsRes.rows.map(s => {
+      const total = parseInt(s.total || 0);
+      const present = parseInt(s.present || 0);
+      const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
+      return {
+        ...s,
+        attendancePercentage: percentage
+      };
+    }) });
   } catch (error) {
     console.error('Error fetching subject students:', error);
     return res.status(500).json({ error: 'Internal Server Error' });
