@@ -47,9 +47,9 @@ router.post('/login', async (req, res) => {
   const emailIdentifier = String(identifier).trim().toLowerCase();
 
   try {
-    // SQL query to find user
+    // SQL query to find user (Case-Insensitive)
     const userResult = await query(
-      'SELECT * FROM public.users WHERE email = $1 AND role = $2',
+      'SELECT * FROM public.users WHERE LOWER(email) = LOWER($1) AND role = $2',
       [emailIdentifier, role]
     );
     const user = userResult.rows[0];
