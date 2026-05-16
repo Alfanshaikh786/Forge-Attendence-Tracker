@@ -3,22 +3,22 @@ import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 
 const facultyData = [
-  { name: 'Mrs. Shruthi Vishwajeeth', shortName: 'SV', email: 'Shruthi', password: 'Sahyadri@AI', subjects: ['BAI404T', 'BAI405L'] },
-  { name: 'Ms. Monisha', shortName: 'MO', email: 'Monisha', password: 'Sahyadri@Bio', subjects: ['BBS409TC'] },
-  { name: 'Ms. Deeksha J S', shortName: 'DJ', email: 'Deeksha', password: 'Sahyadri@Aec', subjects: ['BAI408A2', 'BAI403T'] },
-  { name: 'Dr. Pushpalatha K', shortName: 'PK', email: 'DBMS', password: 'Sahyadri@DBMS', subjects: ['BAI402G'] },
-  { name: 'Dr. Jayashree T R', shortName: 'JTR', email: 'Jayashree', password: 'Sahyadri@Daa', subjects: ['BAI401G'] },
-  { name: 'Mrs. Suchetha Sheka', shortName: 'SS', email: 'Suchetha', password: 'Sahyadri@Maths', subjects: ['BAI406W1'] },
-  { name: 'Ms. Madhura', shortName: 'M', email: 'Madhura', password: 'Sahyadri@UHV2', subjects: ['BHU407TK', 'BHU307TK'] },
-  { name: 'Ms. Shweta S Naik', shortName: 'SN', email: 'Swetha', password: 'Sahyadri@OOPC', subjects: ['BAI303G'] },
-  { name: 'Dr. Sadhana Rai', shortName: 'SR', email: 'Sadhana', password: 'Sahyadri@Dsa', subjects: ['BAI304T', 'BAI305L'] },
-  { name: 'Mr. Sharathchandra N R', shortName: 'SNR', email: 'Sharathchandra', password: 'Sahyadri@DLDCO', subjects: ['BAI302G'] },
-  { name: 'Mr. Ganaraj K', shortName: 'GK', email: 'Ganaraj', password: 'Sahyadri@IDS', subjects: ['BAI306W1'] }
+  { name: 'Mrs. Shruthi Vishwajeeth', shortName: 'SV', email: 'Shruthi@Sahyadri.edu.in', password: 'Sahyadri@AI', subjects: ['BAI404T', 'BAI405L'] },
+  { name: 'Ms. Monisha', shortName: 'MO', email: 'Monisha@Sahyadri.edu.in', password: 'Sahyadri@Bio', subjects: ['BBS409TC'] },
+  { name: 'Ms. Deeksha J S', shortName: 'DJ', email: 'Deeksha@Sahyadri.edu.in', password: 'Sahyadri@Aec', subjects: ['BAI408A2', 'BAI403T'] },
+  { name: 'Dr. Pushpalatha K', shortName: 'PK', email: 'DBMS@Sahyadri.edu.in', password: 'Sahyadri@DBMS', subjects: ['BAI402G'] },
+  { name: 'Dr. Jayashree T R', shortName: 'JTR', email: 'Jayashree@Sahyadri.edu.in', password: 'Sahyadri@Daa', subjects: ['BAI401G'] },
+  { name: 'Mrs. Suchetha Sheka', shortName: 'SS', email: 'Suchetha@Sahyadri.edu.in', password: 'Sahyadri@Maths', subjects: ['BAI406W1'] },
+  { name: 'Ms. Madhura', shortName: 'M', email: 'Madhura@Sahyadri.edu.in', password: 'Sahyadri@UHV2', subjects: ['BHU407TK', 'BHU307TK'] },
+  { name: 'Ms. Shweta S Naik', shortName: 'SN', email: 'Swetha@Sahyadri.edu.in', password: 'Sahyadri@OOPC', subjects: ['BAI303G'] },
+  { name: 'Dr. Sadhana Rai', shortName: 'SR', email: 'Sadhana@Sahyadri.edu.in', password: 'Sahyadri@Dsa', subjects: ['BAI304T', 'BAI305L'] },
+  { name: 'Mr. Sharathchandra N R', shortName: 'SNR', email: 'Sharathchandra@Sahyadri.edu.in', password: 'Sahyadri@DLDCO', subjects: ['BAI302G'] },
+  { name: 'Mr. Ganaraj K', shortName: 'GK', email: 'Ganaraj@Sahyadri.edu.in', password: 'Sahyadri@IDS', subjects: ['BAI306W1'] }
 ];
 
 async function seedFaculty() {
   try {
-    console.log('🌱 Seeding Faculty and Assignments...');
+    console.log('🌱 Updating Faculty Emails to @Sahyadri.edu.in...');
 
     for (const f of facultyData) {
       // 1. Create/Update Faculty identity
@@ -55,12 +55,12 @@ async function seedFaculty() {
         );
       }
 
-      console.log(`✅ Seeded: ${f.name} (${f.email}) -> [${f.subjects.join(', ')}]`);
+      console.log(`✅ Updated: ${f.name} -> ${f.email}`);
     }
 
-    console.log('🎉 Faculty Seeding Completed!');
+    console.log('🎉 Faculty Email Update Completed!');
   } catch (err) {
-    console.error('❌ Seeding failed:', err);
+    console.error('❌ Update failed:', err);
   } finally {
     process.exit();
   }

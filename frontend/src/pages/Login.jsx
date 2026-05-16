@@ -52,7 +52,7 @@ export default function LoginPage() {
           </div>
           <p className="mt-1 text-center text-sm text-fg-secondary">Track your learning journey</p>
 
-          <form className="mt-6 space-y-4" onSubmit={handleSubmit} noValidate>
+          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <div className="rounded-lg bg-surface-inset p-1">
               <div className="grid grid-cols-2 gap-1">
                 <button
@@ -73,9 +73,9 @@ export default function LoginPage() {
             </div>
 
             <Input
-              label="IDENTIFIER (EMAIL/USN)"
+              label="Email Address"
               type="text"
-              placeholder={role === 'student' ? 'Enter your USN' : 'Enter your email'}
+              placeholder={role === 'student' ? 'Enter USN' : 'name@sahyadri.edu.in'}
               value={identifier}
               onChange={(event) => setIdentifier(event.target.value)}
               required
