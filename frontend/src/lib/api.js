@@ -227,6 +227,22 @@ export async function updateStudentProfile(profileData) {
   });
 }
 
+export async function getStudentSubjectDetails(subjectCode) {
+  return apiRequest(`/student/subject/${subjectCode}`);
+}
+
+export async function getStudentSubjectAttendance(subjectCode) {
+  return apiRequest(`/student/subject/${subjectCode}/attendance`);
+}
+
+export async function getStudentSubjectAnalytics(subjectCode) {
+  return apiRequest(`/student/subject/${subjectCode}/analytics`);
+}
+
+export async function getStudentSubjectHeatmap(subjectCode) {
+  return apiRequest(`/student/subject/${subjectCode}/heatmap`);
+}
+
 // NOTIFICATION ENDPOINTS
 export async function getNotifications() {
   return apiRequest('/student/notifications');

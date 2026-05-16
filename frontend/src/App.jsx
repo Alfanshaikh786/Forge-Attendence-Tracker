@@ -13,6 +13,7 @@ import MaterialsLibrary from './pages/mentor/MaterialsLibrary';
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentAttendance from './pages/student/StudentAttendance';
 import UpcomingSession from './pages/student/UpcomingSession';
+import StudentSubjectDetails from './pages/student/StudentSubjectDetails';
 import Settings from './pages/Settings';
 import ChangePassword from './pages/ChangePassword';
 import Messaging from './pages/Messaging';
@@ -72,6 +73,7 @@ function AppRoutes() {
         <Route path="/student/dashboard" element={<RoleGuard role="student"><RouteFade><StudentDashboard /></RouteFade></RoleGuard>} />
         <Route path="/student/attendance" element={<RoleGuard role="student"><RouteFade><StudentAttendance /></RouteFade></RoleGuard>} />
         <Route path="/student/upcoming" element={<RoleGuard role="student"><RouteFade><UpcomingSession /></RouteFade></RoleGuard>} />
+        <Route path="/student/subject/:subjectCode" element={<RoleGuard role="student"><RouteFade><StudentSubjectDetails /></RouteFade></RoleGuard>} />
         <Route path="/student/materials" element={<RoleGuard role="student"><RouteFade><MaterialsLibrary role="student" /></RouteFade></RoleGuard>} />
         
         <Route path="/" element={<RedirectByRole />} />

@@ -244,7 +244,11 @@ export const StudentDashboard = () => {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {stats.subjects.map((sub) => (
-              <Card key={sub.id} className="relative overflow-hidden group hover:border-accent/30 transition-all duration-300 bg-surface-raised/20">
+              <Card 
+                key={sub.id} 
+                className="relative overflow-hidden group hover:border-accent/30 transition-all duration-300 bg-surface-raised/20 cursor-pointer active:scale-[0.98]"
+                onClick={() => navigate(`/student/subject/${sub.code}`)}
+              >
                 <div className="flex justify-between items-start mb-4">
                   <div>
                     <span className="text-[10px] font-mono text-[#ff00ff] uppercase tracking-widest block mb-1">

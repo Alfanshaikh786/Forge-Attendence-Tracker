@@ -207,4 +207,127 @@ router.post('/notifications/read-all', requireAuth, ensureStudent, async (req, r
   }
 });
 
+// -----------------------------------------------------------------------------
+// SUBJECT-SPECIFIC ANALYTICS
+// -----------------------------------------------------------------------------
+
+// GET /api/student/subject/:subjectCode - Get subject details & summary
+router.get('/subject/:subjectCode', requireAuth, ensureStudent, async (req, res) => {
+  try {
+    const { subjectCode } = req.params;
+    const studentId = req.auth.user.studentId;
+
+    const result = await query(`
+      SELECT 
+        sub.*,
+        u.display_name as faculty_name,
+        COUNT(s.id) as total_sessions,
+        COUNT(a.id) FILTER (WHERE a.present = true) as present_sessions,
+        COUNT(a.id) FILTER (WHERE a.present = false) as absent_sessions
+      FROM public.subjects sub
+      LEFT JOIN public.users u ON sub.assigned_faculty_id = u.faculty_id
+      LEFT JOIN public.sessions s ON s.subject_id = sub.id AND s.date <= CURRENT_DATE
+      LEFT JOIN public.attendance a ON a.session_id = s.id AND a.student_id = $1
+      WHERE sub.code = $2
+      GROUP BY sub.id, u.display_name
+    `, [studentId, subjectCode]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Subject not found' });
+    }
+
+    const subject = result.rows[0];
+    const total = parseInt(subject.total_sessions);
+    const present = parseInt(subject.present_sessions);
+    const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
+
+    return res.json({
+      subject: {
+        ...subject,
+        percentage,
+        total,
+        present,
+        absent: parseInt(subject.absent_sessions)
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching student subject details:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/student/subject/:subjectCode/attendance - Full history for this subject
+router.get('/subject/:subjectCode/attendance', requireAuth, ensureStudent, async (req, res) => {
+  try {
+    const { subjectCode } = req.params;
+    const studentId = req.auth.user.studentId;
+
+    const result = await query(`
+      SELECT s.date, s.topic, a.present, a.marked_at
+      FROM public.sessions s
+      JOIN public.subjects sub ON s.subject_id = sub.id
+      LEFT JOIN public.attendance a ON a.session_id = s.id AND a.student_id = $1
+      WHERE sub.code = $2 AND s.date <= CURRENT_DATE
+      ORDER BY s.date DESC
+    `, [studentId, subjectCode]);
+
+    return res.json({ history: result.rows });
+  } catch (error) {
+    console.error('Error fetching subject attendance:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/student/subject/:subjectCode/analytics - Trend data
+router.get('/subject/:subjectCode/analytics', requireAuth, ensureStudent, async (req, res) => {
+  try {
+    const { subjectCode } = req.params;
+    const studentId = req.auth.user.studentId;
+
+    // Returns cumulative attendance percentage over time
+    const result = await query(`
+      SELECT 
+        s.date,
+        AVG(CASE WHEN a.present THEN 100.0 ELSE 0.0 END) OVER (ORDER BY s.date) as rolling_avg
+      FROM public.sessions s
+      JOIN public.subjects sub ON s.subject_id = sub.id
+      JOIN public.attendance a ON a.session_id = s.id
+      WHERE sub.code = $1 AND a.student_id = $2 AND s.date <= CURRENT_DATE
+      ORDER BY s.date ASC
+    `, [subjectCode, studentId]);
+
+    return res.json({ trend: result.rows });
+  } catch (error) {
+    console.error('Error fetching subject analytics:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/student/subject/:subjectCode/heatmap - Daily status
+router.get('/subject/:subjectCode/heatmap', requireAuth, ensureStudent, async (req, res) => {
+  try {
+    const { subjectCode } = req.params;
+    const studentId = req.auth.user.studentId;
+
+    const result = await query(`
+      SELECT s.date, a.present
+      FROM public.sessions s
+      JOIN public.subjects sub ON s.subject_id = sub.id
+      LEFT JOIN public.attendance a ON a.session_id = s.id AND a.student_id = $1
+      WHERE sub.code = $2
+      ORDER BY s.date ASC
+    `, [studentId, subjectCode]);
+
+    const heatmap = result.rows.map(r => ({
+      date: r.date,
+      status: r.present === true ? 'present' : r.present === false ? 'absent' : 'none'
+    }));
+
+    return res.json({ heatmap });
+  } catch (error) {
+    console.error('Error fetching subject heatmap:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;
