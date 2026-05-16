@@ -238,7 +238,6 @@ router.get('/stats', requireAuth, requireMentor, async (req, res) => {
     const sessionsCount = parseInt(sessionsCountRes.rows[0].count);
     
     const today = new Date().toISOString().split('T')[0];
-    const facultyId = req.auth.user.facultyId;
 
     const sessionsResult = await query(`
       SELECT s.*, sub.name as subject_name, sub.code as subject_code
