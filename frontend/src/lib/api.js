@@ -348,3 +348,25 @@ export async function updateSession(sessionId, sessionData) {
     body: JSON.stringify(sessionData),
   });
 }
+
+// MANAGEMENT ENDPOINTS
+export async function updateAttendanceBulk(sessionId, attendanceData) {
+  return apiRequest(`/attendance/update/${sessionId}`, {
+    method: 'PUT',
+    body: JSON.stringify(attendanceData),
+  });
+}
+
+export async function deleteAttendanceSession(sessionId) {
+  return apiRequest(`/attendance/session/${sessionId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function getSubjectAttendanceHistory(subjectId) {
+  return apiRequest(`/attendance/history/${subjectId}`);
+}
+
+export async function getSessionAuditLogs(sessionId) {
+  return apiRequest(`/attendance/audit-logs/${sessionId}`);
+}

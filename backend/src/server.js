@@ -8,6 +8,7 @@ import studentRouter from './routes/student.js';
 import messagesRouter from './routes/messages.js';
 import announcementsRouter from './routes/announcements.js';
 import attendanceImportRouter from './routes/attendanceImport.js';
+import attendanceManagementRouter from './routes/attendanceManagement.js';
 
 dotenv.config();
 
@@ -58,6 +59,7 @@ app.use('/api/mentor', mentorRouter);
 app.use('/api/student', studentRouter);
 app.use('/api/messages', messagesRouter);
 app.use('/api/announcements', announcementsRouter);
+app.use('/api/attendance', attendanceManagementRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Not found.' });

@@ -1,0 +1,149 @@
+import express from 'express';
+import { query } from '../db.js';
+import { requireAuth, requireMentor } from '../middleware/auth.js';
+import { requireSubjectAccess } from '../middleware/subjectAuth.js';
+
+const router = express.Router();
+
+// Middleware: Ensure mentor only
+router.use(requireAuth);
+router.use(requireMentor);
+
+/**
+ * 1. PUT /api/attendance/update/:id
+ * Bulk update attendance for a session with audit logs
+ */
+router.put('/update/:id', requireSubjectAccess, async (req, res) => {
+  try {
+    const { id } = req.params; // sessionId
+    const { attendance, topic, remarks } = req.body;
+    const facultyName = req.auth.user.displayName;
+
+    // 1. Update session info if provided
+    if (topic || remarks) {
+      await query(
+        'UPDATE public.sessions SET topic = COALESCE($1, topic), remarks = COALESCE($2, remarks) WHERE id = $3',
+        [topic, remarks, id]
+      );
+    }
+
+    // 2. Process attendance updates
+    for (const record of attendance) {
+      const { studentId, status } = record; // status is 'present' or 'absent'
+      const isPresent = status === 'present';
+
+      // Get current status for audit
+      const currentRes = await query(
+        'SELECT present FROM public.attendance WHERE student_id = $1 AND session_id = $2',
+        [studentId, id]
+      );
+
+      const previousStatus = currentRes.rows.length > 0 ? currentRes.rows[0].present : null;
+
+      if (previousStatus !== isPresent) {
+        // Update or Insert
+        await query(
+          `INSERT INTO public.attendance (student_id, session_id, present, marked_by, version)
+           VALUES ($1, $2, $3, $4, 1)
+           ON CONFLICT (student_id, session_id) 
+           DO UPDATE SET 
+             present = $3, 
+             marked_by = $4, 
+             version = attendance.version + 1,
+             last_edited_by = $4`,
+          [studentId, id, isPresent, facultyName]
+        );
+
+        // Create Audit Log
+        await query(
+          `INSERT INTO public.attendance_audit (session_id, student_id, previous_status, new_status, changed_by, remarks)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [id, studentId, previousStatus, isPresent, facultyName, remarks || 'Bulk Edit']
+        );
+      }
+    }
+
+    return res.json({ success: true, message: 'Attendance records synchronized and audited.' });
+  } catch (error) {
+    console.error('Error in bulk attendance update:', error);
+    return res.status(500).json({ error: 'Failed to update attendance records.' });
+  }
+});
+
+/**
+ * 2. PATCH /api/attendance/student/:attendanceId
+ * Single student status toggle
+ */
+router.patch('/student/:attendanceId', async (req, res) => {
+  // Implementation for single toggle if needed, usually bulk is used
+  res.status(501).json({ error: 'Not implemented. Use bulk update instead.' });
+});
+
+/**
+ * 3. DELETE /api/attendance/session/:id
+ * Delete a session and all its records
+ */
+router.delete('/session/:id', requireSubjectAccess, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Audit before delete? (Optional)
+    
+    await query('DELETE FROM public.attendance WHERE session_id = $1', [id]);
+    await query('DELETE FROM public.sessions WHERE id = $1', [id]);
+    
+    return res.json({ success: true, message: 'Session purged successfully.' });
+  } catch (error) {
+    console.error('Error deleting session:', error);
+    return res.status(500).json({ error: 'System failure during session purge.' });
+  }
+});
+
+/**
+ * 4. GET /api/attendance/history/:subjectId
+ * Get history of sessions for a subject
+ */
+router.get('/history/:subjectId', requireSubjectAccess, async (req, res) => {
+  try {
+    const { subjectId } = req.params;
+    const result = await query(
+      `SELECT s.*, 
+              COUNT(a.id) as total,
+              COUNT(a.id) FILTER (WHERE a.present = true) as present
+       FROM public.sessions s
+       LEFT JOIN public.attendance a ON s.id = a.session_id
+       WHERE s.subject_id = $1
+       GROUP BY s.id
+       ORDER BY s.date DESC`,
+      [subjectId]
+    );
+    return res.json({ history: result.rows });
+  } catch (error) {
+    console.error('Error fetching subject history:', error);
+    return res.status(500).json({ error: 'Failed to fetch history.' });
+  }
+});
+
+/**
+ * 5. GET /api/attendance/audit-logs/:sessionId
+ * View change history for a session
+ */
+router.get('/audit-logs/:sessionId', requireSubjectAccess, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const result = await query(
+      `SELECT al.*, st.name as student_name, st.usn
+       FROM public.attendance_audit al
+       JOIN public.students st ON al.student_id = st.id
+       WHERE al.session_id = $1
+       ORDER BY al.changed_at DESC`,
+      [sessionId]
+    );
+    return res.json({ logs: result.rows });
+  } catch (error) {
+    console.error('Error fetching audit logs:', error);
+    return res.status(500).json({ error: 'Failed to fetch audit trails.' });
+  }
+});
+
+export default router;
