@@ -140,7 +140,11 @@ router.post('/dry-run', requireAuth, requireMentor, async (req, res) => {
 });
 
 // 3. Commit the import
-router.post('/commit', requireAuth, requireMentor, async (req, res) => {
+router.post('/commit', requireAuth, requireMentor, async (req, res, next) => {
+  // If subjectId is provided, we use the middleware logic manually or let it pass 
+  // since requireSubjectAccess handles req.body.subjectId
+  return next();
+}, requireSubjectAccess, async (req, res) => {
   try {
     const { normalizedRows, conflictResolution, subjectId } = req.body;
     
