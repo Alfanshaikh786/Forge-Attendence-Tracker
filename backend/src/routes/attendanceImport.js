@@ -2,6 +2,7 @@ import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { query } from '../db.js';
 import { requireAuth, requireMentor } from '../middleware/auth.js';
+import { requireSubjectAccess } from '../middleware/subjectAuth.js';
 import { analyzeAttendanceSheet } from '../services/geminiAttendance.js';
 
 const router = express.Router();
