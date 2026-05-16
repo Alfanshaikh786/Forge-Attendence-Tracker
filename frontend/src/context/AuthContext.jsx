@@ -28,7 +28,10 @@ export function AuthProvider({ children }) {
 
   const login = (userData) => {
     setUser(userData);
+    setError(null);
   };
+
+  const clearError = () => setError(null);
 
   const logout = () => {
     apiLogout();
@@ -36,7 +39,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, error, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, error, login, logout, clearError }}>
       {children}
     </AuthContext.Provider>
   );

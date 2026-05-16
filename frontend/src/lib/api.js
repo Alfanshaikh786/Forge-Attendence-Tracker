@@ -23,7 +23,7 @@ export async function apiRequest(endpoint, options = {}) {
     headers,
   });
 
-  if (response.status === 401) {
+  if (response.status === 401 && !endpoint.includes('/auth/login')) {
     localStorage.removeItem('forgetrack_token');
     window.location.href = '/login?error=Session+expired';
     throw new Error('Session expired');

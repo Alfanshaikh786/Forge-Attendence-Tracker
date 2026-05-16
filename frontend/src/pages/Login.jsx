@@ -9,7 +9,7 @@ import { Button } from '../components/ui/Button';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, clearError } = useAuth();
   const [role, setRole] = useState('mentor');
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -17,10 +17,22 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // Clear any previous session errors when reaching the login page
+    clearError();
+    
+    // Check for error in URL (from apiRequest redirect)
+    const params = new URLSearchParams(window.location.search);
+    const urlError = params.get('error');
+    if (urlError) {
+      setError(urlError === 'Session expired' ? 'Your session has expired. Please login again.' : urlError);
+      // Clean URL without refresh
+      window.history.replaceState({}, document.title, "/login");
+    }
+    
     if (user) {
       navigate(user.role === 'mentor' ? '/mentor/dashboard' : '/student/dashboard', { replace: true });
     }
-  }, [user, navigate]);
+  }, [user, navigate, clearError]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();

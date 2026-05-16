@@ -35,22 +35,7 @@ router.get('/me', requireAuth, ensureStudent, async (req, res) => {
 // GET /api/student/attendance-stats - Get attendance statistics
 router.get('/attendance-stats', requireAuth, ensureStudent, async (req, res) => {
   try {
-    const studentId = req.auth.user.studentId;
-
-    const totalSessionsResult = await query('SELECT COUNT(*) FROM public.sessions');
-    const totalSessions = parseInt(totalSessionsResult.rows[0].count);
-
-    const attendanceResult = await query(
-      'SELECT present FROM public.attendance WHERE student_id = $1',
-      [studentId]
-    );
-    const attendance = attendanceResult.rows;
-
-    const presentCount = attendance.filter((a) => a.present === true).length;
-    const absentCount = attendance.filter((a) => a.present === false).length;
-    const attendancePercentage = totalSessions > 0 ? Math.round((presentCount / totalSessions) * 100) : 0;
-
-    // Subject breakdown
+    // 1. Get Subject-wise breakdown (This is the source of truth)
     const subjectStatsResult = await query(`
       SELECT 
         sub.id,
@@ -59,11 +44,11 @@ router.get('/attendance-stats', requireAuth, ensureStudent, async (req, res) => 
         COUNT(s.id) as total,
         COUNT(a.id) FILTER (WHERE a.present = true) as present
       FROM public.subjects sub
-      LEFT JOIN public.sessions s ON s.subject_id = sub.id
+      LEFT JOIN public.sessions s ON s.subject_id = sub.id AND s.date < CURRENT_DATE
       LEFT JOIN public.attendance a ON a.session_id = s.id AND a.student_id = $1
       GROUP BY sub.id, sub.name, sub.code
       ORDER BY sub.name ASC
-    `, [studentId]);
+    `, [req.auth.user.studentId]);
 
     const subjects = subjectStatsResult.rows.map(r => ({
       id: r.id,
@@ -74,11 +59,17 @@ router.get('/attendance-stats', requireAuth, ensureStudent, async (req, res) => 
       percentage: parseInt(r.total) > 0 ? Math.round((parseInt(r.present) / parseInt(r.total)) * 100) : 0
     }));
 
+    // 2. Aggregate stats from subjects
+    const totalSessions = subjects.reduce((sum, s) => sum + s.total, 0);
+    const sessionsAttended = subjects.reduce((sum, s) => sum + s.present, 0);
+    const sessionsMissed = totalSessions - sessionsAttended;
+    const attendancePercentage = totalSessions > 0 ? Math.round((sessionsAttended / totalSessions) * 100) : 0;
+
     return res.json({
       stats: {
         attendancePercentage,
-        sessionsMissed: absentCount,
-        sessionsAttended: presentCount,
+        sessionsMissed,
+        sessionsAttended,
         currentStreak: 0, 
         totalSessions,
         subjects

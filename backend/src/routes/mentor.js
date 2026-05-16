@@ -187,8 +187,26 @@ router.post('/add-student', requireAuth, requireMentor, async (req, res) => {
 // GET /api/mentor/stats - Get dashboard statistics
 router.get('/stats', requireAuth, requireMentor, async (req, res) => {
   try {
-    const studentsCount = await query('SELECT COUNT(*) FROM public.students WHERE is_active = true');
-    const sessionsCount = await query('SELECT COUNT(*) FROM public.sessions');
+    const facultyId = req.auth.user.facultyId;
+
+    // Filter stats by assigned subjects
+    const studentsCountRes = await query(`
+      SELECT COUNT(DISTINCT a.student_id) 
+      FROM public.attendance a
+      JOIN public.sessions s ON a.session_id = s.id
+      JOIN public.subjects sub ON s.subject_id = sub.id
+      WHERE sub.assigned_faculty_id = $1
+    `, [facultyId]);
+
+    const sessionsCountRes = await query(`
+      SELECT COUNT(s.id) 
+      FROM public.sessions s
+      JOIN public.subjects sub ON s.subject_id = sub.id
+      WHERE sub.assigned_faculty_id = $1
+    `, [facultyId]);
+    
+    const studentsCount = parseInt(studentsCountRes.rows[0].count);
+    const sessionsCount = parseInt(sessionsCountRes.rows[0].count);
     
     const today = new Date().toISOString().split('T')[0];
     const facultyId = req.auth.user.facultyId;
@@ -234,11 +252,23 @@ router.get('/stats', requireAuth, requireMentor, async (req, res) => {
       absentStudents: []
     };
 
+    // Calculate average attendance for this faculty
+    const avgAttendanceRes = await query(`
+      SELECT 
+        COUNT(a.id) FILTER (WHERE a.present = true)::float / 
+        NULLIF(COUNT(a.id), 0) * 100 as avg
+      FROM public.attendance a
+      JOIN public.sessions s ON a.session_id = s.id
+      JOIN public.subjects sub ON s.subject_id = sub.id
+      WHERE sub.assigned_faculty_id = $1
+    `, [facultyId]);
+    const avgAttendance = Math.round(parseFloat(avgAttendanceRes.rows[0].avg || 0));
+
     return res.json({
       stats: {
-        totalStudents: parseInt(studentsCount.rows[0].count),
-        totalSessions: parseInt(sessionsCount.rows[0].count),
-        avgAttendance: 0, 
+        totalStudents: studentsCount,
+        totalSessions: sessionsCount,
+        avgAttendance, 
         today: {
           ...firstSession,
           sessionTopic: firstSession.topic,
