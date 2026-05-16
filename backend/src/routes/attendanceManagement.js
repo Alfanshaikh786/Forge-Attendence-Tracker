@@ -59,7 +59,7 @@ router.put('/update/:id', requireAuth, ensureMentor, requireSubjectAccess, async
       if (oldStatus !== isPresent) {
         await client.query(
           `INSERT INTO public.attendance_audit 
-           (session_id, student_id, old_status, new_status, edited_by, remarks)
+           (session_id, student_id, previous_status, new_status, changed_by, remarks)
            VALUES ($1, $2, $3, $4, $5, $6)`,
           [id, studentId, oldStatus, isPresent, facultyName, remarks || 'Manual update']
         );

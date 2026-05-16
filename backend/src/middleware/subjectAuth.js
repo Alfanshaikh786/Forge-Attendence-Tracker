@@ -15,9 +15,10 @@ export async function requireSubjectAccess(req, res, next) {
 
     // 2. Identify Context
     const subjectId = req.params.subjectId || req.body.subjectId || req.query.subjectId;
-    const sessionId = req.params.id || req.body.sessionId || req.query.sessionId;
+    const sessionId = req.params.id || req.params.sessionId || req.body.sessionId || req.query.sessionId;
+    const attendanceId = req.params.attendanceId;
 
-    if (!subjectId && !sessionId) {
+    if (!subjectId && !sessionId && !attendanceId) {
       return next();
     }
 
