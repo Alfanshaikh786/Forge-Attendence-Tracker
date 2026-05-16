@@ -170,7 +170,7 @@ export const MentorDashboard = () => {
             interactive={true}
             className="flex flex-col min-h-[200px]"
           >
-            {data.today.total > 0 || data.today.sessionTopic !== 'No session today' ? (
+            {data.today.total > 0 || (data.today.sessionTopic && data.today.sessionTopic !== 'No session today') ? (
               <>
                 <h3 className="text-xl font-mono font-bold text-[#00ff00] drop-shadow-[0_0_8px_rgba(0,255,0,0.5)] mb-3 uppercase tracking-wide">
                   {data.today.sessionTopic}
@@ -188,11 +188,12 @@ export const MentorDashboard = () => {
                 </div>
               </>
             ) : (
-              <>
+              <div className="flex flex-col h-full items-center justify-center text-center p-6 border border-dashed border-cyber-border rounded">
+                <Calendar className="text-cyber-neon/20 mb-3" size={32} />
                 <p className="text-cyber-text-secondary text-sm font-mono mb-6">
-                  ✗ No session scheduled
+                  ✗ No session scheduled for today
                 </p>
-                <div className="mt-auto">
+                <div className="mt-auto w-full">
                   <Link to="/mentor/attendance">
                     <Button variant="primary" size="md" className="w-full">
                       <Plus size={18} />
@@ -200,7 +201,7 @@ export const MentorDashboard = () => {
                     </Button>
                   </Link>
                 </div>
-              </>
+              </div>
             )}
           </CyberCard>
 
@@ -236,14 +237,44 @@ export const MentorDashboard = () => {
                 <ProgressBar progress={(data.today.present / data.today.total) * 100} size="md" />
               </div>
             ) : (
-              <div className="flex items-center justify-center h-full text-center">
-                <p className="text-cyber-text-secondary text-sm font-mono">
-                  ▸ Create a session first
+              <div className="flex flex-col items-center justify-center h-full text-center p-6 bg-cyber-surface/30 rounded border border-cyber-border/20">
+                <TrendingUp className="text-cyber-neon/10 mb-2" size={24} />
+                <p className="text-cyber-text-secondary text-xs font-mono uppercase tracking-widest opacity-60">
+                  Waiting for live data...
                 </p>
               </div>
             )}
           </CyberCard>
         </div>
+
+        {/* Global Empty State Overlay (If no sessions ever) */}
+        {data.totalSessions === 0 && (
+          <CyberCard className="border-cyber-neon/30 bg-cyber-neon/[0.02]">
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="w-16 h-16 rounded-full bg-cyber-neon/10 flex items-center justify-center mb-6 border border-cyber-neon/30 shadow-[0_0_20px_rgba(0,255,0,0.1)]">
+                <Activity className="text-cyber-neon" size={32} />
+              </div>
+              <h4 className="text-2xl font-mono font-bold text-cyber-neon mb-2 uppercase tracking-tighter">Initial State Protocol</h4>
+              <p className="text-cyber-text-secondary font-mono text-sm max-w-md mb-8">
+                Your dashboard is currently empty. No attendance records detected in the neural network for your assigned subjects.
+              </p>
+              <div className="flex flex-wrap justify-center gap-4">
+                <Link to="/mentor/attendance">
+                  <Button variant="primary">
+                    <Plus size={18} />
+                    INITIALIZE FIRST SESSION
+                  </Button>
+                </Link>
+                <Link to="/mentor/bulk-import">
+                  <Button variant="secondary">
+                    <FileSpreadsheet size={18} />
+                    BULK IMPORT RECORDS
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </CyberCard>
+        )}
 
         {/* Bottom Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-10">

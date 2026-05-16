@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Flame, AlertCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '../context/AuthContext';
@@ -14,15 +14,26 @@ export const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { user, login } = useAuth();
+  const { user, login, clearError } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // If already logged in, redirect
-  React.useEffect(() => {
+  useEffect(() => {
     if (user) {
-      navigate(user.role === 'mentor' ? '/mentor/dashboard' : '/student/dashboard');
+      navigate(user.role === 'mentor' ? '/mentor/dashboard' : '/student/dashboard', { replace: true });
     }
-  }, [user, navigate]);
+    
+    // Clear any global errors when arriving at login
+    if (clearError) clearError();
+    
+    // Check for error in URL params (e.g. session expired)
+    const params = new URLSearchParams(location.search);
+    const urlError = params.get('error');
+    if (urlError) {
+      setError(urlError);
+    }
+  }, [user, navigate, location, clearError]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,7 +45,8 @@ export const LoginPage = () => {
       const profile = await getProfile();
       const userData = profile.user || profile;
       login(userData);
-      navigate(userData.role === 'mentor' ? '/mentor/dashboard' : '/student/dashboard');
+      // Force a hard reload on first login to ensure all state is fresh from DB
+      window.location.href = userData.role === 'mentor' ? '/mentor/dashboard' : '/student/dashboard';
     } catch (err) {
       setError(err.message || 'Invalid credentials. Please try again.');
     } finally {

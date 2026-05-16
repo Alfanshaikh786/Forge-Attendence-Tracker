@@ -10,25 +10,48 @@ const router = express.Router();
 // GET /api/mentor/students - List all students for this mentor
 router.get('/students', requireAuth, requireMentor, async (req, res) => {
   try {
+    const facultyId = req.auth.user.facultyId;
+    
+    // Get students who have attendance in this mentor's subjects
     const studentsResult = await query(
-      `SELECT 
+      `SELECT DISTINCT
         s.id as "_id", 
         s.name as "fullName", 
         s.usn, 
         s.email, 
         s.branch_code as "department", 
-        s.batch as "batchYear",
-        (SELECT COUNT(*) FROM public.sessions) as total_sessions,
-        (SELECT COUNT(*) FROM public.attendance a WHERE a.student_id = s.id AND a.present = true) as present_sessions
+        s.batch as "batchYear"
        FROM public.students s 
+       JOIN public.attendance a ON a.student_id = s.id
+       JOIN public.sessions ses ON a.session_id = ses.id
+       JOIN public.subjects sub ON ses.subject_id = sub.id
+       WHERE sub.assigned_faculty_id = $1
        ORDER BY s.name ASC`,
-      []
+      [facultyId]
     );
-    
-    const students = studentsResult.rows.map(s => ({
-      ...s,
-      attendancePercentage: s.total_sessions > 0 ? Math.round((s.present_sessions / s.total_sessions) * 100) : 0
-    }));
+
+    // Calculate attendance percentages per student for this mentor ONLY
+    const students = [];
+    for (const s of studentsResult.rows) {
+      const stats = await query(`
+        SELECT 
+          COUNT(a.id) as total_faculty_sessions,
+          COUNT(a.id) FILTER (WHERE a.present = true) as present_sessions
+        FROM public.attendance a
+        JOIN public.sessions ses ON a.session_id = ses.id
+        JOIN public.subjects sub ON ses.subject_id = sub.id
+        WHERE a.student_id = $1 AND sub.assigned_faculty_id = $2
+      `, [s._id, facultyId]);
+      
+      const row = stats.rows[0];
+      const total = parseInt(row.total_faculty_sessions);
+      const present = parseInt(row.present_sessions);
+      
+      students.push({
+        ...s,
+        attendancePercentage: total > 0 ? Math.round((present / total) * 100) : 0
+      });
+    }
 
     return res.json({ students });
   } catch (error) {
@@ -59,7 +82,13 @@ router.get('/students/:id/analytics', requireAuth, requireMentor, async (req, re
       markedAt: r.marked_at
     }));
 
-    const totalSessionsResult = await query('SELECT COUNT(*) FROM public.sessions');
+    const totalSessionsResult = await query(`
+      SELECT COUNT(s.id) 
+      FROM public.sessions s
+      JOIN public.subjects sub ON s.subject_id = sub.id
+      WHERE sub.assigned_faculty_id = $1
+    `, [req.auth.user.facultyId]);
+    
     const total = parseInt(totalSessionsResult.rows[0].count);
     const presentCount = history.filter(h => h.status === 'present').length;
     const attendancePercentage = total > 0 ? Math.round((presentCount / total) * 100) : 0;
