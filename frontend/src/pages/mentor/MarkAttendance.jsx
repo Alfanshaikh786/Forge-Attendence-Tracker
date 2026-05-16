@@ -11,7 +11,7 @@ import {
   isBefore,
   isAfter,
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, Lock, Search, Zap } from 'lucide-react';
+import { ArrowDownAZ, ChevronLeft, ChevronRight, Hash, Lock, Search, Zap } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import { CyberCard } from '../../components/ui/CyberCard';
 import { CyberBackground } from '../../components/ui/CyberBackground';
@@ -30,6 +30,7 @@ export default function MarkAttendance() {
   const [students, setStudents] = useState([]);
   const [topic, setTopic] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('usn'); // 'usn' | 'name'
   const [hasChanges, setHasChanges] = useState(false);
   const terminalRef = useRef(null);
 
@@ -128,12 +129,19 @@ export default function MarkAttendance() {
     setHasChanges(true);
   };
 
-  const filteredStudents = students.filter((student) => {
-    const query = searchQuery.toLowerCase();
-    const fullName = String(student.fullName || '').toLowerCase();
-    const usn = String(student.usn || '').toLowerCase();
-    return fullName.includes(query) || usn.includes(query);
-  });
+  const filteredStudents = students
+    .filter((student) => {
+      const query = searchQuery.toLowerCase();
+      const fullName = String(student.fullName || '').toLowerCase();
+      const usn = String(student.usn || '').toLowerCase();
+      return fullName.includes(query) || usn.includes(query);
+    })
+    .sort((a, b) => {
+      if (sortBy === 'usn') {
+        return String(a.usn || '').localeCompare(String(b.usn || ''), undefined, { numeric: true, sensitivity: 'base' });
+      }
+      return String(a.fullName || '').localeCompare(String(b.fullName || ''), undefined, { sensitivity: 'base' });
+    });
 
   const presentCount = students.filter(s => s.isPresent).length;
   const absentCount = students.length - presentCount;
@@ -262,6 +270,35 @@ export default function MarkAttendance() {
                       className="w-full bg-cyber-surface border border-cyber-border rounded px-3 py-2 pl-10 text-sm text-cyber-text placeholder-cyber-text-secondary focus:border-cyber-neon focus:bg-cyber-card outline-none transition-all font-mono"
                     />
                   </div>
+
+                  {/* Sort toggle */}
+                  <div className="flex border border-cyber-border rounded overflow-hidden flex-shrink-0">
+                    <button
+                      title="Sort by USN"
+                      onClick={() => setSortBy('usn')}
+                      className={`flex items-center gap-1 px-3 py-2 text-xs font-mono transition-all ${
+                        sortBy === 'usn'
+                          ? 'bg-cyber-neon text-cyber-bg font-bold'
+                          : 'bg-cyber-surface text-cyber-text-secondary hover:text-cyber-neon'
+                      }`}
+                    >
+                      <Hash size={13} />
+                      USN
+                    </button>
+                    <button
+                      title="Sort by Name"
+                      onClick={() => setSortBy('name')}
+                      className={`flex items-center gap-1 px-3 py-2 text-xs font-mono transition-all border-l border-cyber-border ${
+                        sortBy === 'name'
+                          ? 'bg-cyber-neon text-cyber-bg font-bold'
+                          : 'bg-cyber-surface text-cyber-text-secondary hover:text-cyber-neon'
+                      }`}
+                    >
+                      <ArrowDownAZ size={13} />
+                      NAME
+                    </button>
+                  </div>
+
                   {!isLocked && (
                     <div className="flex gap-2">
                       <Button variant="secondary" size="sm" onClick={() => markAll(true)}>
