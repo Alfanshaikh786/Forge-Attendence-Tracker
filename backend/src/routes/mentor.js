@@ -179,7 +179,7 @@ router.post('/students/:id/reset-password', requireAuth, requireMentor, async (r
   }
 });
 
-// POST /api/mentor/bulk-import-students - Bulk add students
+// POST /api/mentor/bulk-import-students - Bulk add students (Upsert)
 router.post('/bulk-import-students', requireAuth, requireMentor, async (req, res) => {
   try {
     const { students } = req.body;
@@ -188,94 +188,110 @@ router.post('/bulk-import-students', requireAuth, requireMentor, async (req, res
     }
 
     let imported = 0;
+    let updated = 0;
     let skipped = 0;
 
     for (const s of students) {
       const { fullName, usn, email, department, batchYear } = s;
-      if (!fullName || !usn || !email) {
+      if (!fullName || !usn) {
         skipped++;
         continue;
       }
 
+      const upperUSN = usn.trim().toUpperCase();
+      const lowerEmail = email ? email.toLowerCase() : `${upperUSN}@forge.local`;
+
       try {
-        // Check if USN or Email already exists
-        const existing = await query('SELECT id FROM public.students WHERE usn = $1 OR email = $2', [usn.toUpperCase(), email.toLowerCase()]);
-        if (existing.rows.length > 0) {
-          skipped++;
-          continue;
-        }
-
-        // Default password is usn
-        const passwordHash = await bcrypt.hash(String(usn), 12);
+        // Check if student exists
+        const existing = await query('SELECT id FROM public.students WHERE usn = $1', [upperUSN]);
         
-        // 1. Insert student
-        const studentResult = await query(
-          'INSERT INTO public.students (name, usn, email, branch_code, batch) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-          [fullName, usn.toUpperCase(), email.toLowerCase(), department || 'GENERAL', batchYear || '2024-2028']
-        );
-        const studentId = studentResult.rows[0].id;
+        if (existing.rows.length > 0) {
+          const studentId = existing.rows[0].id;
+          // Update
+          await query(
+            'UPDATE public.students SET name=$1, email=$2, branch_code=$3, batch=$4 WHERE id=$5',
+            [fullName, lowerEmail, department || 'GENERAL', batchYear || '2024-2028', studentId]
+          );
+          await query('UPDATE public.users SET display_name = $1 WHERE student_id = $2', [fullName, studentId]);
+          updated++;
+        } else {
+          // Insert
+          const studentResult = await query(
+            'INSERT INTO public.students (name, usn, email, branch_code, batch) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+            [fullName, upperUSN, lowerEmail, department || 'GENERAL', batchYear || '2024-2028']
+          );
+          const studentId = studentResult.rows[0].id;
 
-        // 2. Insert user
-        const userId = uuidv4();
-        await query(
-          'INSERT INTO public.users (id, email, role, display_name, student_id, password_hash) VALUES ($1, $2, $3, $4, $5, $6)',
-          [userId, email.toLowerCase(), 'student', fullName, studentId, passwordHash]
-        );
-        imported++;
+          const passwordHash = await bcrypt.hash(String(upperUSN), 12);
+          const userId = uuidv4();
+          await query(
+            'INSERT INTO public.users (id, email, role, display_name, student_id, password_hash) VALUES ($1, $2, $3, $4, $5, $6)',
+            [userId, lowerEmail, 'student', fullName, studentId, passwordHash]
+          );
+          imported++;
+        }
       } catch (err) {
-        console.error(`Failed to import student ${usn}:`, err);
+        console.error(`Failed to process bulk student ${usn}:`, err);
         skipped++;
       }
     }
 
-    return res.json({ success: true, imported, skipped });
+    return res.json({ success: true, imported, updated, skipped });
   } catch (error) {
     console.error('Error in bulk student import:', error);
     return res.status(500).json({ error: 'Failed to import students' });
   }
 });
 
-// POST /api/mentor/add-student - Add a new student
+// POST /api/mentor/add-student - Add a new student (Upsert)
 router.post('/add-student', requireAuth, requireMentor, async (req, res) => {
   try {
     const { fullName, usn, email, department, batchYear, password } = req.body;
 
-    if (!fullName || !usn || !email || !department || !batchYear || !password) {
+    if (!fullName || !usn || !email || !department || !batchYear) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Check if USN or Email already exists
-    const existing = await query('SELECT id FROM public.students WHERE usn = $1 OR email = $2', [usn.toUpperCase(), email.toLowerCase()]);
-    if (existing.rows.length > 0) {
-      return res.status(400).json({ error: 'Student with this USN or Email already exists' });
+    const upperUSN = usn.toUpperCase();
+    const lowerEmail = email.toLowerCase();
+
+    // Check if student already exists
+    const existingResult = await query('SELECT id FROM public.students WHERE usn = $1', [upperUSN]);
+    
+    let studentId;
+    if (existingResult.rows.length > 0) {
+      // Update existing student
+      studentId = existingResult.rows[0].id;
+      await query(
+        'UPDATE public.students SET name=$1, email=$2, branch_code=$3, batch=$4 WHERE id=$5',
+        [fullName, lowerEmail, department, batchYear, studentId]
+      );
+      // Update user display name
+      await query('UPDATE public.users SET display_name = $1 WHERE student_id = $2', [fullName, studentId]);
+    } else {
+      // Create new student
+      const studentResult = await query(
+        'INSERT INTO public.students (name, usn, email, branch_code, batch) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+        [fullName, upperUSN, lowerEmail, department, batchYear]
+      );
+      studentId = studentResult.rows[0].id;
+
+      // Create new user for student
+      const passwordHash = await bcrypt.hash(String(password || usn), 12);
+      const userId = uuidv4();
+      await query(
+        'INSERT INTO public.users (id, email, role, display_name, student_id, password_hash) VALUES ($1, $2, $3, $4, $5, $6)',
+        [userId, lowerEmail, 'student', fullName, studentId, passwordHash]
+      );
     }
 
-    const passwordHash = await bcrypt.hash(String(password), 12);
-    
-    // 1. Insert student
-    const studentResult = await query(
-      'INSERT INTO public.students (name, usn, email, branch_code, batch) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-      [fullName, usn.toUpperCase(), email.toLowerCase(), department, batchYear]
-    );
-    const studentId = studentResult.rows[0].id;
-
-    // 2. Insert user
-    const userId = uuidv4();
-    await query(
-      'INSERT INTO public.users (id, email, role, display_name, student_id, password_hash) VALUES ($1, $2, $3, $4, $5, $6)',
-      [userId, email.toLowerCase(), 'student', fullName, studentId, passwordHash]
-    );
-
-    return res.status(201).json({
+    return res.status(200).json({
       success: true,
-      message: 'Student added successfully',
+      message: 'Student registered successfully',
     });
   } catch (error) {
-    console.error('Error adding student:', error);
-    if (error.code === '23505') {
-       return res.status(400).json({ error: 'Student USN or Email already exists in the system' });
-    }
-    return res.status(500).json({ error: 'Internal server failure while adding student' });
+    console.error('Error in student upsert:', error);
+    return res.status(500).json({ error: 'Failed to process student registration' });
   }
 });
 
