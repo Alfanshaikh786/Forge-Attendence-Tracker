@@ -90,10 +90,14 @@ export const StudentDashboard = () => {
   }
 
   const displayData = {
-    name: studentData?.fullName || user?.name || "Student",
+    name: studentData?.fullName || studentData?.name || user?.name || "Student",
     usn: studentData?.usn || "N/A",
-    branch: studentData?.department || "N/A",
-    batch: `${studentData?.batchYear}–${(studentData?.batchYear || 0) + 3}`,
+    branch: studentData?.department || studentData?.branch_code || "N/A",
+    batch: studentData?.batchYear 
+      ? `${studentData.batchYear}–${parseInt(studentData.batchYear) + 3}` 
+      : studentData?.batch 
+        ? `${studentData.batch}–${parseInt(studentData.batch) + 3}` 
+        : "N/A",
     attendancePct: stats?.attendancePercentage || 0,
     totalSessions: stats?.totalSessions || 0,
     attendedSessions: stats?.sessionsAttended || 0
