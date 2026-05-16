@@ -94,6 +94,13 @@ export default function StudentSubjectDetails() {
 
   useEffect(() => {
     fetchData();
+    const interval = setInterval(fetchData, 30000);
+    const handleFocus = () => fetchData();
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [subjectCode]);
 
   // Heatmap Color Logic

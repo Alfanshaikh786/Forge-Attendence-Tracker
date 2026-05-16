@@ -79,6 +79,18 @@ export const StudentDashboard = () => {
     };
 
     fetchData();
+
+    // 1. Poller (every 30s)
+    const interval = setInterval(fetchData, 30000);
+
+    // 2. Refetch on window focus
+    const handleFocus = () => fetchData();
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   if (loading) {
