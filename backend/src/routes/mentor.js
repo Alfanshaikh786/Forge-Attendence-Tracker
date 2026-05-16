@@ -66,12 +66,13 @@ router.get('/students/:id/analytics', requireAuth, requireMentor, async (req, re
     const { id } = req.params;
 
     const historyResult = await query(
-      `SELECT a.present, a.marked_at, s.date, s.topic, s.duration_hours
+      `SELECT a.present, a.marked_at, s.date, s.topic, s.duration_hours, sub.name as subject_name
        FROM public.attendance a
        JOIN public.sessions s ON a.session_id = s.id
-       WHERE a.student_id = $1
+       JOIN public.subjects sub ON s.subject_id = sub.id
+       WHERE a.student_id = $1 AND sub.assigned_faculty_id = $2
        ORDER BY s.date ASC`,
-      [id]
+      [id, req.auth.user.facultyId]
     );
 
     const history = historyResult.rows.map(r => ({
@@ -243,6 +244,12 @@ router.post('/add-student', requireAuth, requireMentor, async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // Check if USN or Email already exists
+    const existing = await query('SELECT id FROM public.students WHERE usn = $1 OR email = $2', [usn.toUpperCase(), email.toLowerCase()]);
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: 'Student with this USN or Email already exists' });
+    }
+
     const passwordHash = await bcrypt.hash(String(password), 12);
     
     // 1. Insert student
@@ -265,7 +272,10 @@ router.post('/add-student', requireAuth, requireMentor, async (req, res) => {
     });
   } catch (error) {
     console.error('Error adding student:', error);
-    return res.status(500).json({ error: 'Failed to add student' });
+    if (error.code === '23505') {
+       return res.status(400).json({ error: 'Student USN or Email already exists in the system' });
+    }
+    return res.status(500).json({ error: 'Internal server failure while adding student' });
   }
 });
 
@@ -388,8 +398,8 @@ router.post('/subjects', requireAuth, requireMentor, async (req, res) => {
     if (!name || !code) return res.status(400).json({ error: 'Name and Code are required' });
     
     const result = await query(
-      'INSERT INTO public.subjects (name, code) VALUES ($1, $2) RETURNING *',
-      [name, code.toUpperCase()]
+      'INSERT INTO public.subjects (name, code, assigned_faculty_id) VALUES ($1, $2, $3) RETURNING *',
+      [name, code.toUpperCase(), req.auth.user.facultyId]
     );
     return res.json({ success: true, subject: result.rows[0] });
   } catch (error) {
