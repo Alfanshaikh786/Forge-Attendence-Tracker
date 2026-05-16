@@ -60,7 +60,7 @@ export default function LoginPage() {
                   onClick={() => setRole('mentor')}
                   className={role === 'mentor' ? 'rounded-md bg-surface-raised px-3 py-2 font-medium text-fg-primary shadow-sm' : 'rounded-md px-3 py-2 text-fg-secondary'}
                 >
-                  Mentor
+                  Faculty
                 </button>
                 <button
                   type="button"

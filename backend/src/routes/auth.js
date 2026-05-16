@@ -13,6 +13,7 @@ function serializeUser(user) {
     role: user.role,
     name: user.display_name || user.displayName,
     student_id: user.student_id || user.studentId,
+    faculty_id: user.faculty_id || user.facultyId,
     profile_image: user.profile_image,
     must_change_password: user.must_change_password || false,
   };
@@ -26,6 +27,7 @@ function signToken(user) {
     {
       role: user.role,
       studentId: user.student_id || user.studentId,
+      facultyId: user.faculty_id || user.facultyId,
     },
     secret,
     {

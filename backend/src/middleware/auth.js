@@ -27,11 +27,12 @@ export async function requireAuth(req, res, next) {
     // Map DB fields to what the app expects
     req.auth = { 
       user: {
-        _id: user.id, // Keep _id for frontend compatibility if possible, or update frontend
+        id: user.id,
         email: user.email,
         role: user.role,
         displayName: user.display_name,
-        studentId: user.student_id
+        studentId: user.student_id,
+        facultyId: user.faculty_id
       }, 
       token 
     };

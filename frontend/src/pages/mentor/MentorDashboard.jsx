@@ -72,8 +72,9 @@ export const MentorDashboard = () => {
         <section className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
             <h2 className="font-mono text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#00ff00] to-cyan-400 tracking-widest uppercase drop-shadow-[0_0_10px_rgba(0,255,0,0.4)]">
-              SYSTEM OVERVIEW
+              FACULTY DASHBOARD
             </h2>
+            <h3 className="text-cyber-neon font-mono text-lg mt-1 uppercase tracking-tighter">Welcome, {user.name}</h3>
             <p className="text-cyber-text-secondary text-sm font-mono mt-2">
               {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
 import { query } from '../db.js';
 import { requireAuth, requireMentor } from '../middleware/auth.js';
+import { requireSubjectAccess } from '../middleware/subjectAuth.js';
 
 const router = express.Router();
 
@@ -190,12 +191,14 @@ router.get('/stats', requireAuth, requireMentor, async (req, res) => {
     const sessionsCount = await query('SELECT COUNT(*) FROM public.sessions');
     
     const today = new Date().toISOString().split('T')[0];
+    const facultyId = req.auth.user.facultyId;
+
     const sessionsResult = await query(`
       SELECT s.*, sub.name as subject_name, sub.code as subject_code
       FROM public.sessions s
-      LEFT JOIN public.subjects sub ON s.subject_id = sub.id
-      WHERE s.date = $1
-    `, [today]);
+      JOIN public.subjects sub ON s.subject_id = sub.id
+      WHERE s.date = $1 AND sub.assigned_faculty_id = $2
+    `, [today, facultyId]);
     
     const todaySessions = [];
     
@@ -253,7 +256,11 @@ router.get('/stats', requireAuth, requireMentor, async (req, res) => {
 // SUBJECTS ENDPOINTS
 router.get('/subjects', requireAuth, requireMentor, async (req, res) => {
   try {
-    const result = await query('SELECT * FROM public.subjects ORDER BY name ASC');
+    const facultyId = req.auth.user.facultyId;
+    const result = await query(
+      'SELECT * FROM public.subjects WHERE assigned_faculty_id = $1 ORDER BY name ASC',
+      [facultyId]
+    );
     return res.json({ subjects: result.rows });
   } catch (error) {
     console.error('Error fetching subjects:', error);
@@ -294,7 +301,16 @@ router.get('/sessions/:date', requireAuth, requireMentor, async (req, res) => {
   try {
     const { date } = req.params;
     const { subjectId } = req.query;
+    const facultyId = req.auth.user.facultyId;
     const sessionDate = new Date(date).toISOString().split('T')[0];
+
+    // If subjectId is provided, verify it belongs to this faculty
+    if (subjectId) {
+      const subCheck = await query('SELECT id FROM public.subjects WHERE id = $1 AND assigned_faculty_id = $2', [subjectId, facultyId]);
+      if (subCheck.rows.length === 0) {
+        return res.status(403).json({ error: 'Unauthorized. This subject is not assigned to you.' });
+      }
+    }
 
     let queryText = 'SELECT * FROM public.sessions WHERE date = $1';
     let params = [sessionDate];
@@ -329,7 +345,7 @@ router.get('/sessions/:date', requireAuth, requireMentor, async (req, res) => {
 });
 
 // GET /api/mentor/sessions/:id/attendance - Get attendance for a specific session
-router.get('/sessions/:id/attendance', requireAuth, requireMentor, async (req, res) => {
+router.get('/sessions/:id/attendance', requireAuth, requireMentor, requireSubjectAccess, async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -365,7 +381,7 @@ router.get('/sessions/:id/attendance', requireAuth, requireMentor, async (req, r
 });
 
 // POST /api/mentor/sessions/:id/attendance - Save attendance for a session
-router.post('/sessions/:id/attendance', requireAuth, requireMentor, async (req, res) => {
+router.post('/sessions/:id/attendance', requireAuth, requireMentor, requireSubjectAccess, async (req, res) => {
   try {
     const { id } = req.params;
     const { attendance, topic } = req.body; 
