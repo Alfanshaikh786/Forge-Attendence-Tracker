@@ -13,6 +13,8 @@ import DateClarification from '../../components/import/DateClarification';
 import DryRunPreview    from '../../components/import/DryRunPreview';
 import ImportHistory    from '../../components/import/ImportHistory';
 import { analyzeSheets, dryRun, commitImport } from '../../lib/importApi';
+import { getSubjects } from '../../lib/api';
+import { LayoutGrid } from 'lucide-react';
 
 // ─── Step definitions ──────────────────────────────────────────────────────────
 const STEPS = [
@@ -100,6 +102,16 @@ export default function BulkAttendanceImport() {
 
   // ── Commit result ──
   const [commitResult, setCommitResult] = useState(null);
+
+  // ── Subject state ──
+  const [subjects, setSubjects] = useState([]);
+  const [selectedSubjectId, setSelectedSubjectId] = useState('');
+
+  useEffect(() => {
+    getSubjects().then(res => {
+      setSubjects(res.subjects || []);
+    }).catch(err => console.error('Failed to fetch subjects:', err));
+  }, []);
 
   // ─── Derived ───────────────────────────────────────────────────────────────
   const selectedSheets = useMemo(
@@ -240,7 +252,8 @@ export default function BulkAttendanceImport() {
       const result = await commitImport(
         dryRunResult.batchDraftId,
         dryRunResult.normalizedRows,
-        conflictResolution
+        conflictResolution,
+        selectedSubjectId || null
       );
       setCommitResult(result);
       setStep(5);
@@ -319,6 +332,29 @@ export default function BulkAttendanceImport() {
             selected={selectedNames}
             onChange={setSelectedNames}
           />
+
+          <div className="mt-8 pt-6 border-t border-border-subtle space-y-4">
+            <label className="text-[11px] font-bold text-fg-tertiary uppercase tracking-widest flex items-center gap-2">
+              <LayoutGrid size={14} className="text-accent" />
+              Target Subject (Optional)
+            </label>
+            <select
+              value={selectedSubjectId}
+              onChange={(e) => setSelectedSubjectId(e.target.value)}
+              className="w-full bg-surface-inset border border-border-subtle rounded-xl px-4 py-3 text-fg-primary focus:border-accent outline-none transition-all appearance-none cursor-pointer"
+            >
+              <option value="">General / Daily Attendance</option>
+              {subjects.map(sub => (
+                <option key={sub.id} value={sub.id}>
+                  {sub.name} ({sub.code})
+                </option>
+              ))}
+            </select>
+            <p className="text-[10px] text-fg-tertiary italic">
+              Associate these records with a specific course. If left empty, they will be marked as General.
+            </p>
+          </div>
+
           <div className="flex justify-between mt-8 pt-5 border-t border-border-subtle">
             <button onClick={handleReset} className="flex items-center gap-2 text-sm text-fg-tertiary hover:text-fg-secondary transition-colors">
               <X size={16} /> Start over

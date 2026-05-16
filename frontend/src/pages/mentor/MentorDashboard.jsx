@@ -130,6 +130,35 @@ export const MentorDashboard = () => {
           </CyberCard>
         </section>
 
+        {/* Today's Active Sessions (Multi-Subject Support) */}
+        {data.todaySessions?.length > 1 && (
+          <section className="space-y-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+            <h3 className="text-[11px] font-bold text-[#ff00ff] uppercase tracking-[0.2em] px-2 drop-shadow-[0_0_5px_rgba(255,0,255,0.4)]">
+              ACTIVE SESSIONS ({data.todaySessions.length})
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {data.todaySessions.map((session) => (
+                <CyberCard key={session.id} title={session.subjectCode || 'GENERAL'} icon="⚡" interactive={true} className="!p-4">
+                  <div className="flex justify-between items-start mb-2">
+                    <h4 className="text-sm font-bold text-[#00ff00] truncate max-w-[70%] drop-shadow-[0_0_5px_rgba(0,255,0,0.3)]">
+                      {session.subjectName}
+                    </h4>
+                    <span className="text-xs font-mono text-cyber-text-secondary">
+                      {session.present}/{session.total}
+                    </span>
+                  </div>
+                  <ProgressBar progress={session.total > 0 ? (session.present / session.total) * 100 : 0} size="sm" />
+                  <div className="mt-3 flex justify-end">
+                    <Link to="/mentor/attendance" className="text-[9px] font-bold text-cyan-400 hover:text-[#00ff00] transition-colors uppercase tracking-widest flex items-center gap-1">
+                      Details <ArrowRight size={10} />
+                    </Link>
+                  </div>
+                </CyberCard>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* Session & Attendance Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Active Session */}

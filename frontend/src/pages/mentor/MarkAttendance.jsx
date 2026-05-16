@@ -17,7 +17,7 @@ import { CyberCard } from '../../components/ui/CyberCard';
 import { CyberBackground } from '../../components/ui/CyberBackground';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import Avatar from '../../components/ui/Avatar';
-import { getSessionByDate, getSessionAttendance, saveAttendance } from '../../lib/api';
+import { getSessionByDate, getSessionAttendance, saveAttendance, getSubjects } from '../../lib/api';
 import gsap from 'gsap';
 import toast from 'react-hot-toast';
 
@@ -28,6 +28,8 @@ export default function MarkAttendance() {
   const [saving, setSaving] = useState(false);
   const [session, setSession] = useState(null);
   const [students, setStudents] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [selectedSubjectId, setSelectedSubjectId] = useState('');
   const [topic, setTopic] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('usn'); // 'usn' | 'name'
@@ -57,7 +59,7 @@ export default function MarkAttendance() {
   const loadSession = async () => {
     try {
       setLoading(true);
-      const { session: sessionData } = await getSessionByDate(dateStr);
+      const { session: sessionData } = await getSessionByDate(dateStr, selectedSubjectId);
       setSession(sessionData);
       
       if (sessionData) {
@@ -85,12 +87,27 @@ export default function MarkAttendance() {
   };
 
   useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const { subjects: subjectsList } = await getSubjects();
+        setSubjects(subjectsList || []);
+        if (subjectsList?.length > 0 && !selectedSubjectId) {
+          setSelectedSubjectId(subjectsList[0].id);
+        }
+      } catch (err) {
+        console.error('Failed to fetch subjects', err);
+      }
+    };
+    fetchSubjects();
+  }, []);
+
+  useEffect(() => {
     loadSession();
     // Keep currentWeekStart synced if selectedDate jumps out of bounds (e.g. going to today)
     if (isBefore(selectedDate, currentWeekStart) || isAfter(selectedDate, endOfWeek(currentWeekStart))) {
       setCurrentWeekStart(startOfWeek(selectedDate));
     }
-  }, [dateStr]);
+  }, [dateStr, selectedSubjectId]);
 
   const handleSave = async () => {
     if (!session || isLocked) return;
@@ -156,15 +173,34 @@ export default function MarkAttendance() {
       
       <div className="space-y-6 pb-24 animate-fade-in max-w-6xl mx-auto relative z-10">
         {/* Header */}
-        <section>
-          <h2 className="font-mono text-4xl font-bold text-cyber-neon tracking-widest uppercase">
-            RFID SCANNER
-          </h2>
-          <p className="text-cyber-text-secondary text-sm font-mono mt-2">
-            {dateState === 'today' && '▸ LIVE - Ready for marking'}
-            {dateState === 'past' && '◄ ARCHIVED - View only'}
-            {dateState === 'future' && '⏳ LOCKED - Date not yet available'}
-          </p>
+        <section className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h2 className="font-mono text-4xl font-bold text-cyber-neon tracking-widest uppercase">
+              RFID SCANNER
+            </h2>
+            <p className="text-cyber-text-secondary text-sm font-mono mt-2">
+              {dateState === 'today' && '▸ LIVE - Ready for marking'}
+              {dateState === 'past' && '◄ ARCHIVED - View only'}
+              {dateState === 'future' && '⏳ LOCKED - Date not yet available'}
+            </p>
+          </div>
+
+          <div className="w-full md:w-64">
+            <p className="text-[10px] font-mono text-cyber-neon uppercase tracking-widest mb-2 px-1">SELECT SUBJECT</p>
+            <select
+              value={selectedSubjectId}
+              onChange={(e) => setSelectedSubjectId(e.target.value)}
+              className="w-full bg-cyber-bg border border-cyber-neon/40 rounded px-3 py-2 text-cyber-neon font-mono text-sm focus:border-cyber-neon outline-none transition-all appearance-none cursor-pointer"
+              style={{ backgroundImage: 'linear-gradient(45deg, transparent 50%, #00ff00 50%), linear-gradient(135deg, #00ff00 50%, transparent 50%)', backgroundPosition: 'calc(100% - 20px) calc(1em + 2px), calc(100% - 15px) calc(1em + 2px)', backgroundSize: '5px 5px, 5px 5px', backgroundRepeat: 'no-repeat' }}
+            >
+              <option value="" className="bg-cyber-bg text-cyber-text">General Attendance</option>
+              {subjects.map(sub => (
+                <option key={sub.id} value={sub.id} className="bg-cyber-bg text-cyber-text">
+                  [{sub.code}] {sub.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </section>
 
         {/* Calendar Strip */}

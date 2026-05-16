@@ -50,6 +50,30 @@ router.get('/attendance-stats', requireAuth, ensureStudent, async (req, res) => 
     const absentCount = attendance.filter((a) => a.present === false).length;
     const attendancePercentage = totalSessions > 0 ? Math.round((presentCount / totalSessions) * 100) : 0;
 
+    // Subject breakdown
+    const subjectStatsResult = await query(`
+      SELECT 
+        sub.id,
+        sub.name,
+        sub.code,
+        COUNT(s.id) as total,
+        COUNT(a.id) FILTER (WHERE a.present = true) as present
+      FROM public.subjects sub
+      LEFT JOIN public.sessions s ON s.subject_id = sub.id
+      LEFT JOIN public.attendance a ON a.session_id = s.id AND a.student_id = $1
+      GROUP BY sub.id, sub.name, sub.code
+      ORDER BY sub.name ASC
+    `, [studentId]);
+
+    const subjects = subjectStatsResult.rows.map(r => ({
+      id: r.id,
+      name: r.name,
+      code: r.code,
+      total: parseInt(r.total),
+      present: parseInt(r.present),
+      percentage: parseInt(r.total) > 0 ? Math.round((parseInt(r.present) / parseInt(r.total)) * 100) : 0
+    }));
+
     return res.json({
       stats: {
         attendancePercentage,
@@ -57,6 +81,7 @@ router.get('/attendance-stats', requireAuth, ensureStudent, async (req, res) => 
         sessionsAttended: presentCount,
         currentStreak: 0, 
         totalSessions,
+        subjects
       },
     });
   } catch (error) {
@@ -70,9 +95,10 @@ router.get('/attendance-history', requireAuth, ensureStudent, async (req, res) =
   try {
     const studentId = req.auth.user.studentId;
     const historyResult = await query(
-      `SELECT a.*, s.date, s.topic, s.duration_hours 
+      `SELECT a.*, s.date, s.topic, s.duration_hours, sub.name as subject_name, sub.code as subject_code
        FROM public.attendance a 
        JOIN public.sessions s ON a.session_id = s.id 
+       LEFT JOIN public.subjects sub ON s.subject_id = sub.id
        WHERE a.student_id = $1 
        ORDER BY s.date DESC`,
       [studentId]
@@ -82,6 +108,7 @@ router.get('/attendance-history', requireAuth, ensureStudent, async (req, res) =
       history: historyResult.rows.map(r => ({
         date: r.date,
         topic: r.topic,
+        subject: r.subject_name ? `${r.subject_name} (${r.subject_code})` : 'General',
         status: r.present ? 'present' : 'absent',
         duration: r.duration_hours,
         markedAt: r.marked_at

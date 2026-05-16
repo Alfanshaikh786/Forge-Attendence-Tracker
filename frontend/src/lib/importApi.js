@@ -29,10 +29,10 @@ export async function dryRun(payload) {
 }
 
 /** Step 4 — Commit the dry-run to the database */
-export async function commitImport(batchDraftId, normalizedRows, conflictResolution = 'skip') {
+export async function commitImport(batchDraftId, normalizedRows, conflictResolution = 'skip', subjectId = null) {
   return apiRequest(`${BASE}/commit`, {
     method: 'POST',
-    body: JSON.stringify({ batchDraftId, normalizedRows, conflictResolution }),
+    body: JSON.stringify({ batchDraftId, normalizedRows, conflictResolution, subjectId }),
   });
 }
 

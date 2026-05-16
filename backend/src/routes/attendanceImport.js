@@ -20,17 +20,20 @@ router.post('/analyze', requireAuth, requireMentor, async (req, res) => {
 
 router.post('/commit', requireAuth, requireMentor, async (req, res) => {
   try {
-    const { students, sessionData } = req.body;
+    const { students, sessionData, subjectId } = req.body;
 
     // 1. Get or Create Session
     const sessionDate = new Date(sessionData.date).toISOString().split('T')[0];
-    let sessionResult = await query('SELECT id FROM public.sessions WHERE date = $1', [sessionDate]);
+    let sessionResult = await query(
+      'SELECT id FROM public.sessions WHERE date = $1 AND (subject_id = $2 OR (subject_id IS NULL AND $2 IS NULL))', 
+      [sessionDate, subjectId]
+    );
     let sessionId;
 
     if (sessionResult.rows.length === 0) {
       const newSession = await query(
-        'INSERT INTO public.sessions (date, topic, month_number) VALUES ($1, $2, $3) RETURNING id',
-        [sessionDate, sessionData.topic || 'Imported Session', new Date(sessionDate).getMonth() + 1]
+        'INSERT INTO public.sessions (date, topic, month_number, subject_id) VALUES ($1, $2, $3, $4) RETURNING id',
+        [sessionDate, sessionData.topic || 'Imported Session', new Date(sessionDate).getMonth() + 1, subjectId]
       );
       sessionId = newSession.rows[0].id;
     } else {

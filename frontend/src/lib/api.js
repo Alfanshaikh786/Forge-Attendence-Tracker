@@ -99,8 +99,26 @@ export async function resetStudentPassword(studentId, newPassword, confirmPasswo
   });
 }
 
-export async function getSessionByDate(date) {
-  return apiRequest(`/mentor/sessions/${date}`);
+export async function getSubjects() {
+  return apiRequest('/mentor/subjects');
+}
+
+export async function addSubject(subjectData) {
+  return apiRequest('/mentor/subjects', {
+    method: 'POST',
+    body: JSON.stringify(subjectData),
+  });
+}
+
+export async function deleteSubject(subjectId) {
+  return apiRequest(`/mentor/subjects/${subjectId}`, {
+    method: 'DELETE',
+  });
+}
+
+export async function getSessionByDate(date, subjectId = null) {
+  const url = subjectId ? `/mentor/sessions/${date}?subjectId=${subjectId}` : `/mentor/sessions/${date}`;
+  return apiRequest(url);
 }
 
 export async function getSessionAttendance(sessionId) {

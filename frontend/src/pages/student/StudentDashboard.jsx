@@ -235,6 +235,45 @@ export const StudentDashboard = () => {
           </div>
         </Card>
       </div>
+      
+      {/* Subject Wise Attendance */}
+      {stats?.subjects?.length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#ff00ff] px-2 drop-shadow-[0_0_5px_rgba(255,0,255,0.4)]">
+            Subject-Wise Attendance
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {stats.subjects.map((sub) => (
+              <Card key={sub.id} className="relative overflow-hidden group hover:border-accent/30 transition-all duration-300 bg-surface-raised/20">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <span className="text-[10px] font-mono text-[#ff00ff] uppercase tracking-widest block mb-1">
+                      {sub.code}
+                    </span>
+                    <h4 className="text-lg font-bold text-fg-primary group-hover:text-[#00ff00] transition-colors line-clamp-1">
+                      {sub.name}
+                    </h4>
+                  </div>
+                  <div className={clsx(
+                    "text-2xl font-mono font-bold",
+                    sub.percentage >= 75 ? "text-[#00ff00] drop-shadow-[0_0_8px_rgba(0,255,0,0.4)]" : 
+                    sub.percentage >= 60 ? "text-warning" : "text-danger"
+                  )}>
+                    {sub.percentage}%
+                  </div>
+                </div>
+                
+                <ProgressBar progress={sub.percentage} height="h-1.5" />
+                
+                <div className="mt-4 flex justify-between text-[11px] font-mono text-fg-secondary">
+                  <span>Present: <span className="text-fg-primary">{sub.present}</span></span>
+                  <span>Total Sessions: <span className="text-fg-primary">{sub.total}</span></span>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Recent Sessions Table */}
       <Card className="!p-0 overflow-hidden hover:border-accent/30 transition-colors duration-300">
