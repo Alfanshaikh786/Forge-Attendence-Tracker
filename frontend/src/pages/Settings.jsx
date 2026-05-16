@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Shield, Moon, Sun, Monitor, Camera, Save, Loader2 } from 'lucide-react';
+import { User, Shield, Moon, Sun, Monitor, Camera, Save, Loader2, Key } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -56,9 +56,13 @@ export const Settings = () => {
             <User size={18} />
             Profile Settings
           </button>
-          <button onClick={() => document.getElementById('theme-section')?.scrollIntoView({ behavior: 'smooth' })} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-fg-secondary hover:bg-surface-raised transition-all font-medium">
+          <button onClick={() => document.getElementById('security-section')?.scrollIntoView({ behavior: 'smooth' })} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-fg-secondary hover:bg-surface-raised transition-all font-medium">
             <Shield size={18} />
             Security
+          </button>
+          <button onClick={() => document.getElementById('theme-section')?.scrollIntoView({ behavior: 'smooth' })} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-fg-secondary hover:bg-surface-raised transition-all font-medium">
+            <Sun size={18} />
+            Appearance
           </button>
         </div>
 
@@ -157,6 +161,31 @@ export const Settings = () => {
                 <Monitor size={24} />
                 <span className="text-xs font-bold uppercase tracking-widest">Cosmic</span>
               </button>
+            </div>
+          </Card>
+
+          {/* Security Section */}
+          <Card id="security-section">
+            <h3 className="text-lg font-bold text-fg-primary mb-6 flex items-center gap-2">
+              <Shield size={20} className="text-accent" />
+              Security
+            </h3>
+            
+            <div className="space-y-6">
+              <div className="p-4 rounded-xl bg-surface-inset border border-border-subtle flex items-start gap-4">
+                <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
+                  <Key size={20} className="text-accent" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-fg-primary mb-1">Change Password</h4>
+                  <p className="text-xs text-fg-secondary mb-4 leading-relaxed">
+                    Ensure your account is using a long, random password to stay secure. You will receive an email to reset your password.
+                  </p>
+                  <Button variant="secondary" onClick={() => toast.success('Password reset link sent to your email!')}>
+                    Send Reset Link
+                  </Button>
+                </div>
+              </div>
             </div>
           </Card>
         </div>
