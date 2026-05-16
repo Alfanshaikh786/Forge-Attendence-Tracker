@@ -11,7 +11,7 @@ import {
   isBefore,
   isAfter,
 } from 'date-fns';
-import { ArrowDownAZ, ChevronLeft, ChevronRight, Hash, Lock, Search, Zap } from 'lucide-react';
+import { ArrowDownAZ, ChevronLeft, ChevronRight, Hash, Lock, Search, Zap, CheckCircle2, XCircle } from 'lucide-react';
 import Button from '../../components/ui/Button';
 import { CyberCard } from '../../components/ui/CyberCard';
 import { CyberBackground } from '../../components/ui/CyberBackground';
@@ -318,25 +318,36 @@ export default function MarkAttendance() {
                       key={student.studentId}
                       onClick={() => toggleAttendance(student.studentId)}
                       className={`
-                        flex items-center gap-3 p-2 rounded border cursor-pointer transition-all font-mono text-sm
+                        flex items-center gap-3 p-3 rounded border cursor-pointer transition-all font-mono text-sm
                         ${student.isPresent 
-                          ? 'bg-cyber-neon/10 border-cyber-neon/40 text-cyber-neon' 
-                          : 'bg-cyber-surface border-cyber-border/30 text-cyber-text-secondary hover:border-cyber-text-secondary'
+                          ? 'bg-[#0f172a] border-[#00ff00]/40 hover:border-[#00ff00]' 
+                          : 'bg-[#0f172a] border-[#ff00ff]/40 hover:border-[#ff00ff]'
                         }
                       `}
                     >
-                      <div className={`w-4 h-4 border-2 rounded flex items-center justify-center flex-shrink-0 ${
-                        student.isPresent ? 'bg-cyber-neon border-cyber-neon' : 'border-cyber-border'
-                      }`}>
-                        {student.isPresent && <span className="text-[10px] text-cyber-bg font-bold">✓</span>}
-                      </div>
                       <div className="flex-1 min-w-0">
-                        <p className="truncate font-bold">{student.fullName}</p>
-                        <p className="text-[10px] opacity-70 truncate">{student.usn}</p>
+                        <p className={`truncate font-bold text-lg ${student.isPresent ? 'text-[#00ff00]' : 'text-[#ff00ff]'}`}>{student.fullName}</p>
+                        <p className="text-xs text-cyber-text-secondary truncate">{student.usn}</p>
                       </div>
-                      <span className="flex-shrink-0">
-                        {student.isPresent ? '✓' : '✗'}
-                      </span>
+                      <div className={`
+                        flex items-center gap-2 px-3 py-1.5 rounded border flex-shrink-0
+                        ${student.isPresent 
+                          ? 'border-[#00ff00]/60 text-[#00ff00]' 
+                          : 'border-[#ff00ff]/60 text-[#ff00ff]'
+                        }
+                      `}>
+                        {student.isPresent ? (
+                          <>
+                            <CheckCircle2 size={16} />
+                            <span className="font-bold tracking-wider">PRESENT</span>
+                          </>
+                        ) : (
+                          <>
+                            <XCircle size={16} />
+                            <span className="font-bold tracking-wider">ABSENT</span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
