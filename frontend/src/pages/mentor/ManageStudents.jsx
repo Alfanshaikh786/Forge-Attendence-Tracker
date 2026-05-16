@@ -42,11 +42,11 @@ export function ManageStudents() {
     fetchStudents();
   }, []);
 
-  const filteredStudents = students.filter(
+  const filteredStudents = (students || []).filter(
     (student) =>
-      student.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.usn.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.email.toLowerCase().includes(searchTerm.toLowerCase())
+      (student.fullName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (student.usn || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (student.email || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const paginatedStudents = filteredStudents.slice(
