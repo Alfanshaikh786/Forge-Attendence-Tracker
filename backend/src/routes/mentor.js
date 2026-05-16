@@ -36,6 +36,118 @@ router.get('/students', requireAuth, requireMentor, async (req, res) => {
   }
 });
 
+// GET /api/mentor/students/:id/analytics
+router.get('/students/:id/analytics', requireAuth, requireMentor, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const historyResult = await query(
+      `SELECT a.present, a.marked_at, s.date, s.topic, s.duration_hours
+       FROM public.attendance a
+       JOIN public.sessions s ON a.session_id = s.id
+       WHERE a.student_id = $1
+       ORDER BY s.date ASC`,
+      [id]
+    );
+
+    const history = historyResult.rows.map(r => ({
+      date: r.date,
+      topic: r.topic,
+      status: r.present ? 'present' : 'absent',
+      duration: r.duration_hours,
+      markedAt: r.marked_at
+    }));
+
+    const totalSessionsResult = await query('SELECT COUNT(*) FROM public.sessions');
+    const total = parseInt(totalSessionsResult.rows[0].count);
+    const presentCount = history.filter(h => h.status === 'present').length;
+    const attendancePercentage = total > 0 ? Math.round((presentCount / total) * 100) : 0;
+
+    // Calculate streaks
+    let currentStreak = 0;
+    let longestStreak = 0;
+    let tempStreak = 0;
+    for (const record of history) {
+      if (record.status === 'present') {
+        tempStreak++;
+        longestStreak = Math.max(longestStreak, tempStreak);
+      } else {
+        tempStreak = 0;
+      }
+    }
+    for (let i = history.length - 1; i >= 0; i--) {
+      if (history[i].status === 'present') currentStreak++;
+      else break;
+    }
+
+    // Monthly breakdown
+    const monthlyMap = {};
+    for (const record of history) {
+      const key = new Date(record.date).toLocaleString('default', { month: 'short' });
+      if (!monthlyMap[key]) monthlyMap[key] = { name: key, present: 0, total: 0 };
+      monthlyMap[key].total++;
+      if (record.status === 'present') monthlyMap[key].present++;
+    }
+    const monthlyBreakdown = Object.values(monthlyMap).map(m => ({
+      ...m,
+      percentage: m.total > 0 ? Math.round((m.present / m.total) * 100) : 0
+    }));
+
+    return res.json({ analytics: { attendancePercentage, currentStreak, longestStreak, history, monthlyBreakdown } });
+  } catch (error) {
+    console.error('Error fetching student analytics:', error);
+    return res.status(500).json({ error: 'Failed to fetch student analytics' });
+  }
+});
+
+// PUT /api/mentor/students/:id - Update a student
+router.put('/students/:id', requireAuth, requireMentor, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fullName, usn, email, department, batchYear } = req.body;
+    await query(
+      'UPDATE public.students SET name=$1, usn=$2, email=$3, branch_code=$4, batch=$5 WHERE id=$6',
+      [fullName, usn?.toUpperCase(), email?.toLowerCase(), department, batchYear, id]
+    );
+    await query('UPDATE public.users SET display_name=$1, email=$2 WHERE student_id=$3', [fullName, email?.toLowerCase(), id]);
+    return res.json({ success: true, message: 'Student updated' });
+  } catch (error) {
+    console.error('Error updating student:', error);
+    return res.status(500).json({ error: 'Failed to update student' });
+  }
+});
+
+// DELETE /api/mentor/students/:id - Remove a student
+router.delete('/students/:id', requireAuth, requireMentor, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await query('DELETE FROM public.attendance WHERE student_id = $1', [id]);
+    await query('DELETE FROM public.users WHERE student_id = $1', [id]);
+    await query('DELETE FROM public.students WHERE id = $1', [id]);
+    return res.json({ success: true, message: 'Student removed' });
+  } catch (error) {
+    console.error('Error deleting student:', error);
+    return res.status(500).json({ error: 'Failed to delete student' });
+  }
+});
+
+// POST /api/mentor/students/:id/reset-password
+router.post('/students/:id/reset-password', requireAuth, requireMentor, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { newPassword } = req.body;
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+    const hash = await bcrypt.hash(String(newPassword), 12);
+    await query('UPDATE public.users SET password_hash=$1, must_change_password=true WHERE student_id=$2', [hash, id]);
+    return res.json({ success: true, message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Error resetting password:', error);
+    return res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
 // POST /api/mentor/add-student - Add a new student
 router.post('/add-student', requireAuth, requireMentor, async (req, res) => {
   try {
@@ -235,6 +347,17 @@ router.post('/materials', requireAuth, requireMentor, async (req, res) => {
   } catch (error) {
     console.error('Error adding material:', error);
     return res.status(500).json({ error: 'Failed to add material' });
+  }
+});
+
+// DELETE /api/mentor/materials/:id
+router.delete('/materials/:id', requireAuth, requireMentor, async (req, res) => {
+  try {
+    await query('DELETE FROM public.materials WHERE id = $1', [req.params.id]);
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting material:', error);
+    return res.status(500).json({ error: 'Failed to delete material' });
   }
 });
 

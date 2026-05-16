@@ -12,7 +12,11 @@ export const Settings = () => {
   const [loading, setLoading] = useState(false);
   const [displayName, setDisplayName] = useState(user?.name || '');
   const [profileImage, setProfileImage] = useState(user?.profile_image || '');
-  const [theme, setTheme] = useState(user?.theme || 'dark');
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('forgetrack_theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', saved);
+    return saved;
+  });
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
@@ -31,18 +35,11 @@ export const Settings = () => {
     }
   };
 
-  const handleUpdateTheme = async (newTheme) => {
+  const handleUpdateTheme = (newTheme) => {
     setTheme(newTheme);
-    try {
-      const res = await apiRequest('/auth/update-settings', {
-        method: 'POST',
-        body: JSON.stringify({ theme: newTheme }),
-      });
-      login(res.user);
-      toast.success(`Theme changed to ${newTheme}`);
-    } catch (err) {
-      toast.error(err.message);
-    }
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('forgetrack_theme', newTheme);
+    toast.success(`Theme changed to ${newTheme}`);
   };
 
   return (

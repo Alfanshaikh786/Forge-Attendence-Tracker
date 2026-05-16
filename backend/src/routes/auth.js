@@ -74,4 +74,40 @@ router.get('/me', requireAuth, async (req, res) => {
   return res.json({ user: serializeUser(req.auth.user) });
 });
 
+router.post('/change-password', requireAuth, async (req, res) => {
+  const { oldPassword, newPassword } = req.body ?? {};
+  if (!oldPassword || !newPassword) {
+    return res.status(400).json({ error: 'Old and new passwords are required.' });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'New password must be at least 6 characters.' });
+  }
+  try {
+    const userResult = await query('SELECT * FROM public.users WHERE id = $1', [req.auth.user.id]);
+    const user = userResult.rows[0];
+    const matches = await bcrypt.compare(oldPassword, user.password_hash);
+    if (!matches) {
+      return res.status(401).json({ error: 'Current password is incorrect.' });
+    }
+    const hash = await bcrypt.hash(newPassword, 12);
+    await query('UPDATE public.users SET password_hash=$1, must_change_password=false WHERE id=$2', [hash, req.auth.user.id]);
+    return res.json({ success: true, message: 'Password changed successfully.' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    return res.status(500).json({ error: 'Failed to change password.' });
+  }
+});
+
+router.post('/update-profile', requireAuth, async (req, res) => {
+  const { displayName, profileImage } = req.body ?? {};
+  try {
+    await query('UPDATE public.users SET display_name=$1, profile_image=$2 WHERE id=$3', [displayName, profileImage || null, req.auth.user.id]);
+    const userResult = await query('SELECT * FROM public.users WHERE id = $1', [req.auth.user.id]);
+    return res.json({ user: serializeUser(userResult.rows[0]) });
+  } catch (error) {
+    console.error('Update profile error:', error);
+    return res.status(500).json({ error: 'Failed to update profile.' });
+  }
+});
+
 export default router;

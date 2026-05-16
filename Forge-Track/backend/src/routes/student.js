@@ -1,0 +1,192 @@
+import express from 'express';
+import { query } from '../db.js';
+import { requireAuth } from '../middleware/auth.js';
+
+const router = express.Router();
+
+// Middleware: Ensure user is student
+function ensureStudent(req, res, next) {
+  if (req.auth.user.role !== 'student') {
+    return res.status(403).json({ error: 'Only students can access this' });
+  }
+  next();
+}
+
+// GET /api/student/me - Get student's own record
+router.get('/me', requireAuth, ensureStudent, async (req, res) => {
+  try {
+    const studentResult = await query(
+      'SELECT s.* FROM public.students s WHERE s.id = $1',
+      [req.auth.user.studentId]
+    );
+    const student = studentResult.rows[0];
+
+    if (!student) {
+      return res.status(404).json({ error: 'Student record not found' });
+    }
+
+    return res.json({ student });
+  } catch (error) {
+    console.error('Error fetching student record:', error);
+    return res.status(500).json({ error: 'Failed to fetch student record' });
+  }
+});
+
+// GET /api/student/attendance-stats - Get attendance statistics
+router.get('/attendance-stats', requireAuth, ensureStudent, async (req, res) => {
+  try {
+    const studentId = req.auth.user.studentId;
+
+    const totalSessionsResult = await query('SELECT COUNT(*) FROM public.sessions');
+    const totalSessions = parseInt(totalSessionsResult.rows[0].count);
+
+    const attendanceResult = await query(
+      'SELECT present FROM public.attendance WHERE student_id = $1',
+      [studentId]
+    );
+    const attendance = attendanceResult.rows;
+
+    const presentCount = attendance.filter((a) => a.present === true).length;
+    const absentCount = attendance.filter((a) => a.present === false).length;
+    const attendancePercentage = totalSessions > 0 ? Math.round((presentCount / totalSessions) * 100) : 0;
+
+    return res.json({
+      stats: {
+        attendancePercentage,
+        sessionsMissed: absentCount,
+        sessionsAttended: presentCount,
+        currentStreak: 0, 
+        totalSessions,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching attendance stats:', error);
+    return res.status(500).json({ error: 'Failed to fetch attendance stats' });
+  }
+});
+
+// GET /api/student/attendance-history
+router.get('/attendance-history', requireAuth, ensureStudent, async (req, res) => {
+  try {
+    const studentId = req.auth.user.studentId;
+    const historyResult = await query(
+      `SELECT a.*, s.date, s.topic, s.duration_hours 
+       FROM public.attendance a 
+       JOIN public.sessions s ON a.session_id = s.id 
+       WHERE a.student_id = $1 
+       ORDER BY s.date DESC`,
+      [studentId]
+    );
+
+    return res.json({
+      history: historyResult.rows.map(r => ({
+        date: r.date,
+        topic: r.topic,
+        status: r.present ? 'present' : 'absent',
+        duration: r.duration_hours,
+        markedAt: r.marked_at
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching history:', error);
+    return res.status(500).json({ error: 'Failed to fetch history' });
+  }
+});
+
+// GET /api/student/upcoming-session
+router.get('/upcoming-session', requireAuth, ensureStudent, async (req, res) => {
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const sessionResult = await query(
+      'SELECT * FROM public.sessions WHERE date >= $1 ORDER BY date ASC LIMIT 1',
+      [today]
+    );
+    return res.json({ session: sessionResult.rows[0] || null });
+  } catch (error) {
+    console.error('Error fetching upcoming session:', error);
+    return res.status(500).json({ error: 'Failed to fetch upcoming session' });
+  }
+});
+
+// GET /api/student/heatmap
+router.get('/heatmap', requireAuth, ensureStudent, async (req, res) => {
+  try {
+    const studentId = req.auth.user.studentId;
+    const heatmapResult = await query(
+      `SELECT s.date, a.present 
+       FROM public.sessions s
+       LEFT JOIN public.attendance a ON a.session_id = s.id AND a.student_id = $1
+       ORDER BY s.date ASC`,
+      [studentId]
+    );
+    
+    // Map to { date: 'YYYY-MM-DD', status: 'present'|'absent'|'none' }
+    const heatmap = heatmapResult.rows.map(r => ({
+      date: r.date,
+      status: r.present === true ? 'present' : r.present === false ? 'absent' : 'none'
+    }));
+
+    return res.json({ heatmap });
+  } catch (error) {
+    console.error('Error fetching heatmap:', error);
+    return res.status(500).json({ error: 'Failed to fetch heatmap' });
+  }
+});
+
+// GET /api/student/materials
+router.get('/materials', requireAuth, ensureStudent, async (req, res) => {
+  try {
+    const materialsResult = await query(
+      `SELECT m.*, s.date as "sessionDate", s.topic as "sessionTopic"
+       FROM public.materials m
+       JOIN public.sessions s ON m.session_id = s.id
+       ORDER BY s.date DESC`
+    );
+    return res.json({ materials: materialsResult.rows });
+  } catch (error) {
+    console.error('Error fetching student materials:', error);
+    return res.status(500).json({ error: 'Failed to fetch materials' });
+  }
+});
+
+// NOTIFICATIONS
+router.get('/notifications', requireAuth, ensureStudent, async (req, res) => {
+  try {
+    const result = await query(
+      'SELECT * FROM public.notifications WHERE user_id = $1 ORDER BY created_at DESC',
+      [req.auth.user.id]
+    );
+    return res.json({ notifications: result.rows });
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    return res.status(500).json({ error: 'Failed to fetch notifications' });
+  }
+});
+
+router.post('/notifications/:id/read', requireAuth, ensureStudent, async (req, res) => {
+  try {
+    await query(
+      'UPDATE public.notifications SET is_read = true WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.auth.user.id]
+    );
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Error marking notification read:', error);
+    return res.status(500).json({ error: 'Failed to mark as read' });
+  }
+});
+
+router.post('/notifications/read-all', requireAuth, ensureStudent, async (req, res) => {
+  try {
+    await query(
+      'UPDATE public.notifications SET is_read = true WHERE user_id = $1',
+      [req.auth.user.id]
+    );
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Error marking all read:', error);
+    return res.status(500).json({ error: 'Failed to mark all as read' });
+  }
+});
+
+export default router;

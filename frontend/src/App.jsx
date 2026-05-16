@@ -20,6 +20,10 @@ import Forbidden from './pages/Forbidden';
 import { Toaster } from 'react-hot-toast';
 import './App.css';
 
+// Apply saved theme immediately on load
+const savedTheme = localStorage.getItem('forgetrack_theme') || 'dark';
+document.documentElement.setAttribute('data-theme', savedTheme);
+
 function RouteFade({ children }) {
   const location = useLocation();
   return <div key={location.pathname} className="animate-fade-in">{children}</div>;
