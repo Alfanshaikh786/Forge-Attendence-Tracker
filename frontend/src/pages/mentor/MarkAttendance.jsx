@@ -193,7 +193,7 @@ export default function MarkAttendance() {
               className="w-full bg-[#0a0a0f] border border-cyber-neon/40 rounded px-3 py-2 text-cyber-neon font-mono text-sm focus:border-cyber-neon outline-none transition-all cursor-pointer"
               style={{ colorScheme: 'dark' }}
             >
-              <option value="" className="bg-[#0a0a0f] text-white">General Attendance</option>
+              <option value="" className="bg-[#0a0a0f] text-white">Skill Lab (General)</option>
               {subjects.map(sub => (
                 <option key={sub.id} value={sub.id} className="bg-[#0a0a0f] text-white">
                   [{sub.code}] {sub.name}

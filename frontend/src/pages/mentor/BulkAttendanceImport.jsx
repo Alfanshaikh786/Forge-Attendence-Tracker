@@ -344,7 +344,7 @@ export default function BulkAttendanceImport() {
               className="w-full bg-[#0a0a0f] border border-border-subtle rounded-xl px-4 py-3 text-white focus:border-accent outline-none transition-all cursor-pointer"
               style={{ colorScheme: 'dark' }}
             >
-              <option value="" className="bg-[#0a0a0f] text-white">General / Daily Attendance</option>
+              <option value="" className="bg-[#0a0a0f] text-white">Skill Lab (General)</option>
               {subjects.map(sub => (
                 <option key={sub.id} value={sub.id} className="bg-[#0a0a0f] text-white">
                   {sub.name} ({sub.code})

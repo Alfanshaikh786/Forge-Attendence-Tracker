@@ -212,7 +212,7 @@ router.get('/stats', requireAuth, requireMentor, async (req, res) => {
       todaySessions.push({
         id: session.id,
         topic: session.topic,
-        subjectName: session.subject_name || 'General',
+        subjectName: session.subject_name || 'Skill Lab',
         subjectCode: session.subject_code || null,
         total: attendance.length,
         present: attendance.filter(a => a.present).length,

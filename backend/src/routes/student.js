@@ -108,7 +108,7 @@ router.get('/attendance-history', requireAuth, ensureStudent, async (req, res) =
       history: historyResult.rows.map(r => ({
         date: r.date,
         topic: r.topic,
-        subject: r.subject_name ? `${r.subject_name} (${r.subject_code})` : 'General',
+        subject: r.subject_name ? `${r.subject_name} (${r.subject_code})` : 'Skill Lab',
         status: r.present ? 'present' : 'absent',
         duration: r.duration_hours,
         markedAt: r.marked_at
