@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   FileSpreadsheet, Bot, Eye, CheckCircle2,
   Upload, Loader2, RotateCcw, History, X,
