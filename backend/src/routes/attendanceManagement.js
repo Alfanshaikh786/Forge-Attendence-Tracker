@@ -18,13 +18,20 @@ function ensureMentor(req, res, next) {
  * Bulk update attendance for a specific session with audit trail.
  */
 router.put('/update/:id', requireAuth, ensureMentor, requireSubjectAccess, async (req, res) => {
-  const { id } = req.params;
+  const { id: sessionIdStr } = req.params;
   const { attendance, remarks } = req.body;
   const facultyName = req.auth.user.displayName;
+  const sessionId = parseInt(sessionIdStr);
+
+  if (isNaN(sessionId)) {
+    return res.status(400).json({ error: 'Invalid session ID' });
+  }
 
   if (!attendance || !Array.isArray(attendance)) {
     return res.status(400).json({ error: 'Attendance records required' });
   }
+
+  console.log(`[AttendanceMgmt] Bulk update starting for session ${sessionId} by ${facultyName}`);
 
   const client = await pool.connect();
 
@@ -32,17 +39,19 @@ router.put('/update/:id', requireAuth, ensureMentor, requireSubjectAccess, async
     await client.query('BEGIN');
 
     for (const record of attendance) {
-      const studentId = record.studentId;
-      const isPresent = record.isPresent;
+      const { studentId, isPresent } = record;
+
+      if (!studentId) continue;
 
       // 1. Get old status for audit
       const oldStatusRes = await client.query(
         'SELECT present FROM public.attendance WHERE student_id = $1 AND session_id = $2',
-        [studentId, id]
+        [studentId, sessionId]
       );
       const oldStatus = oldStatusRes.rows.length > 0 ? oldStatusRes.rows[0].present : null;
 
       // 2. Insert or Update attendance
+      // Use COALESCE(version, 0) to handle existing rows with NULL versions
       await client.query(
         `INSERT INTO public.attendance (student_id, session_id, present, marked_by, version)
          VALUES ($1, $2, $3, $4, 1)
@@ -50,9 +59,9 @@ router.put('/update/:id', requireAuth, ensureMentor, requireSubjectAccess, async
          DO UPDATE SET 
            present = $3, 
            marked_by = $4, 
-           version = attendance.version + 1,
+           version = COALESCE(public.attendance.version, 0) + 1,
            last_edited_by = $4`,
-        [studentId, id, isPresent, facultyName]
+        [studentId, sessionId, isPresent, facultyName]
       );
 
       // 3. Create Audit Log if status changed
@@ -61,7 +70,7 @@ router.put('/update/:id', requireAuth, ensureMentor, requireSubjectAccess, async
           `INSERT INTO public.attendance_audit 
            (session_id, student_id, previous_status, new_status, changed_by, remarks)
            VALUES ($1, $2, $3, $4, $5, $6)`,
-          [id, studentId, oldStatus, isPresent, facultyName, remarks || 'Manual update']
+          [sessionId, studentId, oldStatus, isPresent, facultyName, remarks || 'Manual update']
         );
       }
     }
@@ -69,15 +78,20 @@ router.put('/update/:id', requireAuth, ensureMentor, requireSubjectAccess, async
     // 4. Update session-level metadata
     await client.query(
       'UPDATE public.sessions SET remarks = $1, last_edited_at = CURRENT_TIMESTAMP WHERE id = $2',
-      [remarks, id]
+      [remarks, sessionId]
     );
 
     await client.query('COMMIT');
+    console.log(`[AttendanceMgmt] Bulk update successful for session ${sessionId}`);
     res.json({ success: true, message: 'Attendance records synchronized' });
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('[AttendanceMgmt] Bulk update failure:', error);
-    res.status(500).json({ error: 'Failed to update attendance records' });
+    console.error('[AttendanceMgmt] CRITICAL FAILURE:', error);
+    res.status(500).json({ 
+      error: 'Failed to update attendance records', 
+      details: error.message,
+      code: error.code 
+    });
   } finally {
     client.release();
   }
