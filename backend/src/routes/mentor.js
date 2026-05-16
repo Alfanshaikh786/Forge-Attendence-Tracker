@@ -648,6 +648,7 @@ router.get('/subjects/:id/students', requireAuth, requireMentor, requireSubjectA
         s.branch_code as "department",
         ana.total_sessions as total,
         ana.present_count as present,
+        ana.absent_count as absent,
         ana.attendance_percentage as "attendancePercentage"
       FROM public.students s
       LEFT JOIN public.student_attendance_analytics ana ON s.id = ana.student_id AND ana.subject_id = $1
@@ -657,7 +658,8 @@ router.get('/subjects/:id/students', requireAuth, requireMentor, requireSubjectA
     
     return res.json({ students: studentsRes.rows.map(s => ({
       ...s,
-      attendancePercentage: parseInt(s.attendancePercentage || 0)
+      attendancePercentage: parseInt(s.attendancePercentage || 0),
+      absent: parseInt(s.absent || 0)
     })) });
   } catch (error) {
     console.error('Error fetching subject students:', error);
