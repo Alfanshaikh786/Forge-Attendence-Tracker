@@ -74,7 +74,7 @@ export default function LoginPage() {
 
             <Input
               label="Email or USN"
-              type={role === 'student' ? 'text' : 'email'}
+              type="text"
               placeholder={role === 'student' ? 'Enter your USN' : 'Enter your email'}
               value={identifier}
               onChange={(event) => setIdentifier(event.target.value)}
