@@ -603,14 +603,17 @@ router.get('/subjects/:id/details', requireAuth, requireMentor, requireSubjectAc
     // 2. Get Stats
     const statsRes = await query(`
       SELECT 
-        COUNT(DISTINCT s.id) as "totalSessions",
-        COUNT(DISTINCT a.student_id) as "totalStudents",
-        AVG(CASE WHEN a.present THEN 100 ELSE 0 END) as "avgAttendance"
-      FROM public.sessions s
-      LEFT JOIN public.attendance a ON s.id = a.session_id
-      WHERE s.subject_id = $1
+        COUNT(DISTINCT student_id) as "totalStudents",
+        (SELECT COUNT(*) FROM public.sessions WHERE subject_id = $1) as "totalSessions",
+        AVG(attendance_percentage) as "avgAttendance"
+      FROM public.student_attendance_analytics
+      WHERE subject_id = $1
     `, [id]);
     
+    const stats = statsRes.rows[0];
+    const avgAttendance = Math.round(parseFloat(stats.avgAttendance || 0));
+    const sessionsCount = parseInt(stats.totalSessions || 0);
+
     const lastSessionRes = await query(`
       SELECT date FROM public.sessions 
       WHERE subject_id = $1 
@@ -638,32 +641,24 @@ router.get('/subjects/:id/students', requireAuth, requireMentor, requireSubjectA
   try {
     const { id } = req.params;
     const studentsRes = await query(`
-      WITH subject_sessions AS (
-        SELECT id FROM public.sessions WHERE subject_id = $1 AND date <= CURRENT_DATE
-      )
       SELECT 
         s.id, 
         s.name as "fullName", 
         s.usn, 
         s.branch_code as "department",
-        (SELECT COUNT(*) FROM subject_sessions) as total,
-        COUNT(a.id) FILTER (WHERE a.present = true) as present
+        ana.total_sessions as total,
+        ana.present_count as present,
+        ana.attendance_percentage as "attendancePercentage"
       FROM public.students s
-      LEFT JOIN public.attendance a ON s.id = a.student_id AND a.session_id IN (SELECT id FROM subject_sessions)
+      LEFT JOIN public.student_attendance_analytics ana ON s.id = ana.student_id AND ana.subject_id = $1
       WHERE s.is_active = true
-      GROUP BY s.id
       ORDER BY s.name ASC
     `, [id]);
     
-    return res.json({ students: studentsRes.rows.map(s => {
-      const total = parseInt(s.total || 0);
-      const present = parseInt(s.present || 0);
-      const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
-      return {
-        ...s,
-        attendancePercentage: percentage
-      };
-    }) });
+    return res.json({ students: studentsRes.rows.map(s => ({
+      ...s,
+      attendancePercentage: parseInt(s.attendancePercentage || 0)
+    })) });
   } catch (error) {
     console.error('Error fetching subject students:', error);
     return res.status(500).json({ error: 'Internal Server Error' });

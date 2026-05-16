@@ -32,51 +32,56 @@ router.get('/me', requireAuth, ensureStudent, async (req, res) => {
   }
 });
 
-// GET /api/student/attendance-stats - Get attendance statistics
+/**
+ * 1. GET /api/student/attendance-stats
+ * SOURCE OF TRUTH: public.student_attendance_analytics (Centralized View)
+ */
 router.get('/attendance-stats', requireAuth, ensureStudent, async (req, res) => {
   try {
-    // 1. Get Subject-wise breakdown (This is the source of truth)
+    const studentId = req.auth.user.studentId;
+
+    // Fetch from Unified Analytics View
     const subjectStatsResult = await query(`
       SELECT 
-        sub.id,
-        sub.name,
-        sub.code,
-        COUNT(s.id) FILTER (WHERE s.date <= CURRENT_DATE OR a.id IS NOT NULL) as total,
-        COUNT(a.id) FILTER (WHERE a.present = true) as present
-      FROM public.subjects sub
-      LEFT JOIN public.sessions s ON s.subject_id = sub.id
-      LEFT JOIN public.attendance a ON a.session_id = s.id AND a.student_id = $1
-      GROUP BY sub.id, sub.name, sub.code
-      ORDER BY sub.name ASC
-    `, [req.auth.user.studentId]);
+        subject_id as id,
+        subject_name as name,
+        subject_code as code,
+        total_sessions as total,
+        present_count as present,
+        absent_count as absent,
+        attendance_percentage as percentage
+      FROM public.student_attendance_analytics
+      WHERE student_id = $1
+      ORDER BY subject_name ASC
+    `, [studentId]);
 
-    const subjects = subjectStatsResult.rows.map(r => ({
-      id: r.id,
-      name: r.name,
-      code: r.code,
-      total: parseInt(r.total),
-      present: parseInt(r.present),
-      percentage: parseInt(r.total) > 0 ? Math.round((parseInt(r.present) / parseInt(r.total)) * 100) : 0
-    }));
+    const subjects = subjectStatsResult.rows;
 
-    // 2. Aggregate stats from subjects
-    const totalSessions = subjects.reduce((sum, s) => sum + s.total, 0);
-    const sessionsAttended = subjects.reduce((sum, s) => sum + s.present, 0);
+    // Calculate global aggregates from the same source of truth
+    const globalStats = subjects.reduce((acc, sub) => ({
+      total: acc.total + parseInt(sub.total),
+      present: acc.present + parseInt(sub.present)
+    }), { total: 0, present: 0 });
+
+    const totalSessions = globalStats.total;
+    const sessionsAttended = globalStats.present;
     const sessionsMissed = totalSessions - sessionsAttended;
-    const attendancePercentage = totalSessions > 0 ? Math.round((sessionsAttended / totalSessions) * 100) : 0;
+    const attendancePercentage = totalSessions > 0 
+      ? Math.round((sessionsAttended / totalSessions) * 100) 
+      : 0;
 
     return res.json({
       stats: {
         attendancePercentage,
-        sessionsMissed,
         sessionsAttended,
+        sessionsMissed,
         currentStreak: 0, 
         totalSessions,
         subjects
       },
     });
   } catch (error) {
-    console.error('Error fetching attendance stats:', error);
+    console.error('[StudentAPI] Stats failure:', error);
     return res.status(500).json({ error: 'Failed to fetch attendance stats' });
   }
 });
@@ -138,7 +143,6 @@ router.get('/heatmap', requireAuth, ensureStudent, async (req, res) => {
       [studentId]
     );
     
-    // Map to { date: 'YYYY-MM-DD', status: 'present'|'absent'|'none' }
     const heatmap = heatmapResult.rows.map(r => ({
       date: r.date,
       status: r.present === true ? 'present' : r.present === false ? 'absent' : 'none'
@@ -151,63 +155,10 @@ router.get('/heatmap', requireAuth, ensureStudent, async (req, res) => {
   }
 });
 
-// GET /api/student/materials
-router.get('/materials', requireAuth, ensureStudent, async (req, res) => {
-  try {
-    const materialsResult = await query(
-      `SELECT m.*, s.date as "sessionDate", s.topic as "sessionTopic"
-       FROM public.materials m
-       JOIN public.sessions s ON m.session_id = s.id
-       ORDER BY s.date DESC`
-    );
-    return res.json({ materials: materialsResult.rows });
-  } catch (error) {
-    console.error('Error fetching student materials:', error);
-    return res.status(500).json({ error: 'Failed to fetch materials' });
-  }
-});
-
-// NOTIFICATIONS
-router.get('/notifications', requireAuth, ensureStudent, async (req, res) => {
-  try {
-    const result = await query(
-      'SELECT * FROM public.notifications WHERE user_id = $1 ORDER BY created_at DESC',
-      [req.auth.user.id]
-    );
-    return res.json({ notifications: result.rows });
-  } catch (error) {
-    console.error('Error fetching notifications:', error);
-    return res.status(500).json({ error: 'Failed to fetch notifications' });
-  }
-});
-
-router.post('/notifications/:id/read', requireAuth, ensureStudent, async (req, res) => {
-  try {
-    await query(
-      'UPDATE public.notifications SET is_read = true WHERE id = $1 AND user_id = $2',
-      [req.params.id, req.auth.user.id]
-    );
-    return res.json({ success: true });
-  } catch (error) {
-    console.error('Error marking notification read:', error);
-    return res.status(500).json({ error: 'Failed to mark as read' });
-  }
-});
-
-router.post('/notifications/read-all', requireAuth, ensureStudent, async (req, res) => {
-  try {
-    await query(
-      'UPDATE public.notifications SET is_read = true WHERE user_id = $1',
-      [req.auth.user.id]
-    );
-    return res.json({ success: true });
-  } catch (error) {
-    console.error('Error marking all read:', error);
-    return res.status(500).json({ error: 'Failed to mark all as read' });
-  }
-});
-
-// GET /api/student/subject/:subjectCode - Get subject details & summary
+/**
+ * 2. GET /api/student/subject/:subjectCode
+ * Unified Subject Data Portal
+ */
 router.get('/subject/:subjectCode', requireAuth, ensureStudent, async (req, res) => {
   try {
     const { subjectCode } = req.params;
@@ -227,39 +178,35 @@ router.get('/subject/:subjectCode', requireAuth, ensureStudent, async (req, res)
 
     const subject = subjectResult.rows[0];
 
-    // 2. Get real attendance counts
+    // 2. Fetch Aggregated Stats from UNIFIED VIEW
     const statsResult = await query(`
       SELECT 
-        COUNT(DISTINCT s.id) as total,
-        COUNT(DISTINCT a.id) FILTER (WHERE a.present = true) as present,
-        COUNT(DISTINCT a.id) FILTER (WHERE a.present = false) as absent
-      FROM public.sessions s
-      LEFT JOIN public.attendance a ON a.session_id = s.id AND a.student_id = $1
-      WHERE s.subject_id = $2 
-        AND (s.date <= CURRENT_DATE OR a.id IS NOT NULL)
+        total_sessions as total,
+        present_count as present,
+        absent_count as absent,
+        attendance_percentage as percentage
+      FROM public.student_attendance_analytics
+      WHERE student_id = $1 AND subject_id = $2
     `, [studentId, subject.id]);
 
-    const stats = statsResult.rows[0];
-    const total = parseInt(stats.total);
-    const present = parseInt(stats.present);
-    const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
+    const stats = statsResult.rows[0] || { total: 0, present: 0, absent: 0, percentage: 0 };
 
     return res.json({
       subject: {
         ...subject,
-        percentage,
-        total,
-        present,
+        percentage: parseInt(stats.percentage),
+        total: parseInt(stats.total),
+        present: parseInt(stats.present),
         absent: parseInt(stats.absent)
       }
     });
   } catch (error) {
-    console.error('Error fetching student subject details:', error);
+    console.error('[StudentAPI] Subject detail failure:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// GET /api/student/subject/:subjectCode/attendance - Full history for this subject
+// GET /api/student/subject/:subjectCode/attendance
 router.get('/subject/:subjectCode/attendance', requireAuth, ensureStudent, async (req, res) => {
   try {
     const { subjectCode } = req.params;
@@ -281,7 +228,7 @@ router.get('/subject/:subjectCode/attendance', requireAuth, ensureStudent, async
   }
 });
 
-// GET /api/student/subject/:subjectCode/analytics - Trend data
+// GET /api/student/subject/:subjectCode/analytics
 router.get('/subject/:subjectCode/analytics', requireAuth, ensureStudent, async (req, res) => {
   try {
     const { subjectCode } = req.params;
@@ -312,7 +259,7 @@ router.get('/subject/:subjectCode/analytics', requireAuth, ensureStudent, async 
   }
 });
 
-// GET /api/student/subject/:subjectCode/heatmap - Daily status
+// GET /api/student/subject/:subjectCode/heatmap
 router.get('/subject/:subjectCode/heatmap', requireAuth, ensureStudent, async (req, res) => {
   try {
     const { subjectCode } = req.params;
