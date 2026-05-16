@@ -20,6 +20,7 @@ export const CyberCard = ({
   interactive = true,
   title,
   icon,
+  ...props
 }) => {
   const cardRef = useRef(null);
   const glowRef = useRef(null);
@@ -80,6 +81,7 @@ export const CyberCard = ({
   return (
     <div
       ref={cardRef}
+      {...props}
       className={`
         relative rounded-lg border border-cyber-border bg-cyber-card p-6
         transition-all duration-300 overflow-hidden

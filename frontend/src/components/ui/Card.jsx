@@ -1,9 +1,10 @@
 import React from 'react';
 import { clsx } from 'clsx';
 
-export const Card = ({ children, className, hover = false, glow = false }) => {
+export const Card = ({ children, className, hover = false, glow = false, ...props }) => {
   return (
     <div
+      {...props}
       className={clsx(
         'rounded-xl border p-6 md:p-8 relative overflow-hidden',
         hover && 'hover:transition-colors duration-200 cursor-pointer',
