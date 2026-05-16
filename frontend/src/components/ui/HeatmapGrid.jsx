@@ -24,7 +24,7 @@ export const HeatmapGrid = ({ data = [], month, year, onMonthChange }) => {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex justify-between items-center">
-        <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-fg-tertiary">
+        <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#ff00ff] drop-shadow-[0_0_5px_rgba(255,0,255,0.4)]">
           Attendance Heatmap
         </span>
         
@@ -35,7 +35,7 @@ export const HeatmapGrid = ({ data = [], month, year, onMonthChange }) => {
           >
             <ChevronLeft size={16} />
           </button>
-          <span className="text-xs font-mono text-fg-secondary">
+          <span className="text-xs font-mono font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#00ff00] to-cyan-400 drop-shadow-[0_0_5px_rgba(0,255,0,0.3)]">
             {month} {year}
           </span>
           <button
