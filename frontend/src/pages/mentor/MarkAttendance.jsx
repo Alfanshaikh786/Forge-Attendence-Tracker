@@ -48,7 +48,7 @@ export default function MarkAttendance() {
 
   const today = startOfDay(new Date());
   const dateState = isAfter(selectedDate, today) ? 'future' : isBefore(selectedDate, today) ? 'past' : 'today';
-  const isLocked = dateState !== 'today';
+  const isLocked = dateState === 'future';
 
   const normalizeStudent = (student) => {
     const studentId = student.studentId || student._id || student.id;
@@ -430,7 +430,7 @@ export default function MarkAttendance() {
             <p className="text-cyber-text-secondary font-mono mb-4">
               ✗ No session found for {format(selectedDate, 'yyyy-MM-dd')}
             </p>
-            {dateState === 'today' && (
+            {dateState !== 'future' && (
               <Button variant="primary" onClick={loadSession}>
                 CREATE SESSION
               </Button>
