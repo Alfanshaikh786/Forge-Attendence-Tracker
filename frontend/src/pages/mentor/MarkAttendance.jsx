@@ -21,15 +21,25 @@ import { getSessionByDate, getSessionAttendance, saveAttendance, getSubjects } f
 import gsap from 'gsap';
 import toast from 'react-hot-toast';
 
+import { useSearchParams } from 'react-router-dom';
+
 export default function MarkAttendance() {
-  const [selectedDate, setSelectedDate] = useState(startOfDay(new Date()));
-  const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(startOfDay(new Date())));
+  const [searchParams] = useSearchParams();
+  const urlSubjectId = searchParams.get('subjectId');
+  const urlDate = searchParams.get('date');
+
+  const [selectedDate, setSelectedDate] = useState(
+    urlDate ? startOfDay(new Date(urlDate)) : startOfDay(new Date())
+  );
+  const [currentWeekStart, setCurrentWeekStart] = useState(
+    startOfWeek(urlDate ? startOfDay(new Date(urlDate)) : startOfDay(new Date()))
+  );
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [session, setSession] = useState(null);
   const [students, setStudents] = useState([]);
   const [subjects, setSubjects] = useState([]);
-  const [selectedSubjectId, setSelectedSubjectId] = useState('');
+  const [selectedSubjectId, setSelectedSubjectId] = useState(urlSubjectId || '');
   const [topic, setTopic] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('usn'); // 'usn' | 'name'

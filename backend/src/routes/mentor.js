@@ -503,4 +503,133 @@ router.delete('/materials/:id', requireAuth, requireMentor, async (req, res) => 
   }
 });
 
+// SUBJECT DETAILS & ANALYTICS
+router.get('/subjects/:id/details', requireAuth, requireMentor, requireSubjectAccess, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // 1. Get Subject basic info
+    const subjectRes = await query('SELECT * FROM public.subjects WHERE id = $1', [id]);
+    const subject = subjectRes.rows[0];
+    
+    if (!subject) return res.status(404).json({ error: 'Subject not found' });
+
+    // 2. Get Stats
+    const statsRes = await query(`
+      SELECT 
+        COUNT(DISTINCT s.id) as "totalSessions",
+        COUNT(DISTINCT a.student_id) as "totalStudents",
+        AVG(CASE WHEN a.present THEN 100 ELSE 0 END) as "avgAttendance"
+      FROM public.sessions s
+      LEFT JOIN public.attendance a ON s.id = a.session_id
+      WHERE s.subject_id = $1
+    `, [id]);
+    
+    const lastSessionRes = await query(`
+      SELECT date FROM public.sessions 
+      WHERE subject_id = $1 
+      ORDER BY date DESC LIMIT 1
+    `, [id]);
+
+    return res.json({
+      subject: {
+        ...subject,
+        stats: {
+          totalSessions: parseInt(statsRes.rows[0].totalSessions || 0),
+          totalStudents: parseInt(statsRes.rows[0].totalStudents || 0),
+          avgAttendance: Math.round(parseFloat(statsRes.rows[0].avgAttendance || 0)),
+          lastSessionDate: lastSessionRes.rows[0]?.date || null
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching subject details:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+router.get('/subjects/:id/students', requireAuth, requireMentor, requireSubjectAccess, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const studentsRes = await query(`
+      SELECT DISTINCT s.id, s.name as "fullName", s.usn, s.branch_code as "department",
+             AVG(CASE WHEN a.present THEN 100 ELSE 0 END) as "attendancePercentage"
+      FROM public.students s
+      JOIN public.attendance a ON s.id = a.student_id
+      JOIN public.sessions ses ON a.session_id = ses.id
+      WHERE ses.subject_id = $1
+      GROUP BY s.id
+      ORDER BY s.name ASC
+    `, [id]);
+    
+    return res.json({ students: studentsRes.rows.map(s => ({
+      ...s,
+      attendancePercentage: Math.round(parseFloat(s.attendancePercentage))
+    })) });
+  } catch (error) {
+    console.error('Error fetching subject students:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+router.get('/subjects/:id/sessions', requireAuth, requireMentor, requireSubjectAccess, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const sessionsRes = await query(`
+      SELECT s.id, s.date, s.topic, s.duration_hours as "duration",
+             COUNT(a.id) as "total",
+             COUNT(a.id) FILTER (WHERE a.present = true) as "present"
+      FROM public.sessions s
+      LEFT JOIN public.attendance a ON s.id = a.session_id
+      WHERE s.subject_id = $1
+      GROUP BY s.id
+      ORDER BY s.date DESC
+    `, [id]);
+    
+    return res.json({ sessions: sessionsRes.rows });
+  } catch (error) {
+    console.error('Error fetching subject sessions:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+router.get('/subjects/:id/analytics', requireAuth, requireMentor, requireSubjectAccess, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const analyticsRes = await query(`
+      SELECT s.date, 
+             AVG(CASE WHEN a.present THEN 100 ELSE 0 END) as "attendance"
+      FROM public.sessions s
+      JOIN public.attendance a ON s.id = a.session_id
+      WHERE s.subject_id = $1
+      GROUP BY s.id, s.date
+      ORDER BY s.date ASC
+      LIMIT 10
+    `, [id]);
+    
+    return res.json({ 
+      chartData: analyticsRes.rows.map(r => ({
+        date: new Date(r.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        attendance: Math.round(parseFloat(r.attendance))
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching analytics:', error);
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
+});
+
+// DELETE /api/mentor/sessions/:id
+router.delete('/sessions/:id', requireAuth, requireMentor, requireSubjectAccess, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await query('DELETE FROM public.attendance WHERE session_id = $1', [id]);
+    await query('DELETE FROM public.sessions WHERE id = $1', [id]);
+    return res.json({ success: true, message: 'Session deleted' });
+  } catch (error) {
+    console.error('Error deleting session:', error);
+    return res.status(500).json({ error: 'Failed to delete session' });
+  }
+});
+
 export default router;

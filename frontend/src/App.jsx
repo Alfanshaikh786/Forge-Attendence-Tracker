@@ -8,6 +8,7 @@ import MarkAttendance from './pages/mentor/MarkAttendance';
 import StudentHistory from './pages/mentor/StudentHistory';
 import { ManageStudents } from './pages/mentor/ManageStudents';
 import BulkAttendanceImport from './pages/mentor/BulkAttendanceImport';
+import SubjectDetails from './pages/mentor/SubjectDetails';
 import MaterialsLibrary from './pages/mentor/MaterialsLibrary';
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentAttendance from './pages/student/StudentAttendance';
@@ -59,6 +60,8 @@ function AppRoutes() {
         
         {/* Mentor Routes */}
         <Route path="/mentor/dashboard" element={<RoleGuard role="mentor"><RouteFade><MentorDashboard /></RouteFade></RoleGuard>} />
+        <Route path="/mentor/subject/:id" element={<RoleGuard role="mentor"><RouteFade><SubjectDetails /></RouteFade></RoleGuard>} />
+        <Route path="/mentor/mark-attendance" element={<RoleGuard role="mentor"><RouteFade><MarkAttendance /></RouteFade></RoleGuard>} />
         <Route path="/mentor/attendance" element={<RoleGuard role="mentor"><RouteFade><MarkAttendance /></RouteFade></RoleGuard>} />
         <Route path="/mentor/students" element={<RoleGuard role="mentor"><RouteFade><ManageStudents /></RouteFade></RoleGuard>} />
         <Route path="/mentor/students-history" element={<RoleGuard role="mentor"><RouteFade><StudentHistory /></RouteFade></RoleGuard>} />

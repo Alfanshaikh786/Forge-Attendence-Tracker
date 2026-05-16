@@ -161,6 +161,29 @@ export async function removeMaterial(materialId) {
   });
 }
 
+// NEW SUBJECT SPECIFIC ENDPOINTS
+export async function getSubjectDetails(subjectId) {
+  return apiRequest(`/mentor/subjects/${subjectId}/details`);
+}
+
+export async function getSubjectStudents(subjectId) {
+  return apiRequest(`/mentor/subjects/${subjectId}/students`);
+}
+
+export async function getSubjectSessions(subjectId) {
+  return apiRequest(`/mentor/subjects/${subjectId}/sessions`);
+}
+
+export async function getSubjectAnalytics(subjectId) {
+  return apiRequest(`/mentor/subjects/${subjectId}/analytics`);
+}
+
+export async function deleteSession(sessionId) {
+  return apiRequest(`/mentor/sessions/${sessionId}`, {
+    method: 'DELETE',
+  });
+}
+
 
 // STUDENT ENDPOINTS
 export async function getStudentRecord() {

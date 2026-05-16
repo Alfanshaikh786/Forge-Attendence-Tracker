@@ -25,29 +25,34 @@ import Button from '../../components/ui/Button';
 import { CyberCard } from '../../components/ui/CyberCard';
 import { CyberMetric } from '../../components/ui/CyberMetric';
 import { CyberBackground } from '../../components/ui/CyberBackground';
-import { getMentorStats } from '../../lib/api';
+import { getMentorStats, getSubjects } from '../../lib/api';
 import gsap from 'gsap';
 import toast from 'react-hot-toast';
 
 export const MentorDashboard = () => {
   const { user } = useAuth();
   const [data, setData] = useState(null);
+  const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const systemStatusRef = useRef(null);
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchDashboard = async () => {
       try {
-        const result = await getMentorStats();
-        setData(result.stats);
+        const [statsResult, subjectsResult] = await Promise.all([
+          getMentorStats(),
+          getSubjects()
+        ]);
+        setData(statsResult.stats);
+        setSubjects(subjectsResult.subjects || []);
       } catch (err) {
-        toast.error('Failed to fetch dashboard stats');
+        toast.error('Failed to fetch dashboard data');
         console.error(err);
       } finally {
         setLoading(false);
       }
     };
-    fetchStats();
+    fetchDashboard();
   }, []);
 
   if (loading) {
@@ -130,6 +135,54 @@ export const MentorDashboard = () => {
               status={systemStatus}
             />
           </CyberCard>
+        </section>
+
+        {/* Assigned Subjects Matrix */}
+        <section className="space-y-4 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+          <div className="flex justify-between items-center px-2">
+            <h3 className="text-[11px] font-bold text-cyber-neon uppercase tracking-[0.2em] drop-shadow-[0_0_5px_rgba(0,255,0,0.4)]">
+              ASSIGNED SUBJECTS ({subjects.length})
+            </h3>
+            <span className="text-[9px] font-mono text-cyber-text-secondary uppercase">Click to Manage Matrix</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {subjects.length > 0 ? (
+              subjects.map((sub) => (
+                <Link key={sub.id} to={`/mentor/subject/${sub.id}`}>
+                  <CyberCard 
+                    title={sub.code} 
+                    icon="🧬" 
+                    interactive={true} 
+                    className="hover:border-cyber-neon/50 group transition-all duration-300"
+                  >
+                    <div className="flex justify-between items-end mb-4">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-lg font-bold text-cyber-text truncate group-hover:text-cyber-neon transition-colors">
+                          {sub.name}
+                        </h4>
+                        <p className="text-[10px] font-mono text-cyber-text-secondary uppercase tracking-wider mt-1">
+                          Independent Management Module
+                        </p>
+                      </div>
+                      <div className="flex flex-col items-end">
+                        <ArrowRight size={18} className="text-cyber-neon opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 pt-2 border-t border-cyber-border/30">
+                      <div className="w-full bg-cyber-surface/50 h-1 rounded-full overflow-hidden">
+                        <div className="bg-cyber-neon/30 h-full w-[40%]" />
+                      </div>
+                      <span className="text-[9px] font-mono text-cyber-neon/60 whitespace-nowrap">VIEW DETAILS</span>
+                    </div>
+                  </CyberCard>
+                </Link>
+              ))
+            ) : (
+              <div className="col-span-full py-8 border border-dashed border-cyber-border rounded text-center">
+                <p className="text-cyber-text-secondary font-mono text-xs italic">No subjects assigned to your credentials</p>
+              </div>
+            )}
+          </div>
         </section>
 
         {/* Today's Active Sessions (Multi-Subject Support) */}
