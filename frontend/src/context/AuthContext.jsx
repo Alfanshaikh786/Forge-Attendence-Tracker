@@ -34,10 +34,11 @@ export function AuthProvider({ children }) {
   const clearError = () => setError(null);
 
   const logout = () => {
+    localStorage.clear();
+    sessionStorage.clear();
     apiLogout();
     setUser(null);
     window.location.href = '/login';
-    window.location.reload();
   };
 
   return (
