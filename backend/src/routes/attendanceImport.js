@@ -142,8 +142,9 @@ router.post('/dry-run', requireAuth, requireMentor, async (req, res) => {
 
 // 3. Commit the import
 router.post('/commit', requireAuth, requireMentor, async (req, res, next) => {
-  // If subjectId is provided, we use the middleware logic manually or let it pass 
-  // since requireSubjectAccess handles req.body.subjectId
+  if (!req.body.subjectId) {
+    return res.status(400).json({ error: 'Subject ID is required for import. Please select a subject in the dropdown.' });
+  }
   return next();
 }, requireSubjectAccess, async (req, res) => {
   try {
