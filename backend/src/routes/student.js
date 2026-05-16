@@ -44,7 +44,7 @@ router.get('/attendance-stats', requireAuth, ensureStudent, async (req, res) => 
         COUNT(s.id) as total,
         COUNT(a.id) FILTER (WHERE a.present = true) as present
       FROM public.subjects sub
-      LEFT JOIN public.sessions s ON s.subject_id = sub.id AND s.date < CURRENT_DATE
+      LEFT JOIN public.sessions s ON s.subject_id = sub.id AND s.date <= CURRENT_DATE
       LEFT JOIN public.attendance a ON a.session_id = s.id AND a.student_id = $1
       GROUP BY sub.id, sub.name, sub.code
       ORDER BY sub.name ASC
@@ -207,38 +207,40 @@ router.post('/notifications/read-all', requireAuth, ensureStudent, async (req, r
   }
 });
 
-// -----------------------------------------------------------------------------
-// SUBJECT-SPECIFIC ANALYTICS
-// -----------------------------------------------------------------------------
-
 // GET /api/student/subject/:subjectCode - Get subject details & summary
 router.get('/subject/:subjectCode', requireAuth, ensureStudent, async (req, res) => {
   try {
     const { subjectCode } = req.params;
     const studentId = req.auth.user.studentId;
 
-    const result = await query(`
-      SELECT 
-        sub.*,
-        u.display_name as faculty_name,
-        COUNT(s.id) as total_sessions,
-        COUNT(a.id) FILTER (WHERE a.present = true) as present_sessions,
-        COUNT(a.id) FILTER (WHERE a.present = false) as absent_sessions
+    // 1. Get Subject info and faculty
+    const subjectResult = await query(`
+      SELECT sub.*, u.display_name as faculty_name
       FROM public.subjects sub
       LEFT JOIN public.users u ON sub.assigned_faculty_id = u.faculty_id
-      LEFT JOIN public.sessions s ON s.subject_id = sub.id AND s.date <= CURRENT_DATE
-      LEFT JOIN public.attendance a ON a.session_id = s.id AND a.student_id = $1
-      WHERE sub.code = $2
-      GROUP BY sub.id, u.display_name
-    `, [studentId, subjectCode]);
+      WHERE sub.code = $1
+    `, [subjectCode]);
 
-    if (result.rows.length === 0) {
+    if (subjectResult.rows.length === 0) {
       return res.status(404).json({ error: 'Subject not found' });
     }
 
-    const subject = result.rows[0];
-    const total = parseInt(subject.total_sessions);
-    const present = parseInt(subject.present_sessions);
+    const subject = subjectResult.rows[0];
+
+    // 2. Get real attendance counts
+    const statsResult = await query(`
+      SELECT 
+        COUNT(s.id) as total,
+        COUNT(a.id) FILTER (WHERE a.present = true) as present,
+        COUNT(a.id) FILTER (WHERE a.present = false) as absent
+      FROM public.sessions s
+      LEFT JOIN public.attendance a ON a.session_id = s.id AND a.student_id = $1
+      WHERE s.subject_id = $2 AND s.date <= CURRENT_DATE
+    `, [studentId, subject.id]);
+
+    const stats = statsResult.rows[0];
+    const total = parseInt(stats.total);
+    const present = parseInt(stats.present);
     const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
 
     return res.json({
@@ -247,7 +249,7 @@ router.get('/subject/:subjectCode', requireAuth, ensureStudent, async (req, res)
         percentage,
         total,
         present,
-        absent: parseInt(subject.absent_sessions)
+        absent: parseInt(stats.absent)
       }
     });
   } catch (error) {
@@ -284,17 +286,23 @@ router.get('/subject/:subjectCode/analytics', requireAuth, ensureStudent, async 
     const { subjectCode } = req.params;
     const studentId = req.auth.user.studentId;
 
-    // Returns cumulative attendance percentage over time
     const result = await query(`
+      WITH session_history AS (
+        SELECT 
+          s.date,
+          CASE WHEN a.present THEN 1 ELSE 0 END as was_present,
+          ROW_NUMBER() OVER (ORDER BY s.date) as session_num
+        FROM public.sessions s
+        JOIN public.subjects sub ON s.subject_id = sub.id
+        LEFT JOIN public.attendance a ON a.session_id = s.id AND a.student_id = $1
+        WHERE sub.code = $2 AND s.date <= CURRENT_DATE
+      )
       SELECT 
-        s.date,
-        AVG(CASE WHEN a.present THEN 100.0 ELSE 0.0 END) OVER (ORDER BY s.date) as rolling_avg
-      FROM public.sessions s
-      JOIN public.subjects sub ON s.subject_id = sub.id
-      JOIN public.attendance a ON a.session_id = s.id
-      WHERE sub.code = $1 AND a.student_id = $2 AND s.date <= CURRENT_DATE
-      ORDER BY s.date ASC
-    `, [subjectCode, studentId]);
+        date,
+        ROUND((SUM(was_present) OVER (ORDER BY date)::float / session_num) * 100) as rolling_avg
+      FROM session_history
+      ORDER BY date ASC
+    `, [studentId, subjectCode]);
 
     return res.json({ trend: result.rows });
   } catch (error) {
@@ -326,6 +334,29 @@ router.get('/subject/:subjectCode/heatmap', requireAuth, ensureStudent, async (r
     return res.json({ heatmap });
   } catch (error) {
     console.error('Error fetching subject heatmap:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/student/subject/:subjectCode/upcoming
+router.get('/subject/:subjectCode/upcoming', requireAuth, ensureStudent, async (req, res) => {
+  try {
+    const { subjectCode } = req.params;
+    const today = new Date().toISOString().split('T')[0];
+    
+    const result = await query(`
+      SELECT s.*, u.display_name as faculty_name, sub.name as subject_name
+      FROM public.sessions s
+      JOIN public.subjects sub ON s.subject_id = sub.id
+      LEFT JOIN public.users u ON sub.assigned_faculty_id = u.faculty_id
+      WHERE sub.code = $1 AND s.date >= $2
+      ORDER BY s.date ASC
+      LIMIT 1
+    `, [subjectCode, today]);
+
+    return res.json({ upcoming: result.rows[0] || null });
+  } catch (error) {
+    console.error('Error fetching upcoming session:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

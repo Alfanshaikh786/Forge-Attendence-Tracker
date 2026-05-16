@@ -243,6 +243,10 @@ export async function getStudentSubjectHeatmap(subjectCode) {
   return apiRequest(`/student/subject/${subjectCode}/heatmap`);
 }
 
+export async function getStudentSubjectUpcoming(subjectCode) {
+  return apiRequest(`/student/subject/${subjectCode}/upcoming`);
+}
+
 // NOTIFICATION ENDPOINTS
 export async function getNotifications() {
   return apiRequest('/student/notifications');
