@@ -43,16 +43,31 @@ export const StudentDashboard = () => {
         setHistory(historyRes.history);
         setUpcoming(upcomingRes.session);
 
-        // Convert heatmap to grid format
+        // Convert heatmap array to map for O(1) lookup
+        const heatmapMap = {};
+        if (Array.isArray(heatmapRes.heatmap)) {
+          heatmapRes.heatmap.forEach(item => {
+            const dStr = typeof item.date === 'string' 
+              ? item.date.split('T')[0] 
+              : new Date(item.date).toISOString().split('T')[0];
+            heatmapMap[dStr] = item.status;
+          });
+        }
+
+        // Convert heatmap to grid format (last 30 days)
         const hData = [];
         const today = new Date();
         for (let i = 29; i >= 0; i--) {
           const d = new Date();
           d.setDate(today.getDate() - i);
-          const dateStr = d.toISOString().split('T')[0];
+          // Handle timezone offset to get local YYYY-MM-DD
+          const offset = d.getTimezoneOffset();
+          const localD = new Date(d.getTime() - (offset * 60 * 1000));
+          const dateStr = localD.toISOString().split('T')[0];
+          
           hData.push({
             date: dateStr,
-            status: heatmapRes.heatmap[dateStr] || 'none'
+            status: heatmapMap[dateStr] || 'none'
           });
         }
         setHeatmap(hData);
