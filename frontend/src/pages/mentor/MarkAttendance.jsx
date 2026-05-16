@@ -57,6 +57,9 @@ export default function MarkAttendance() {
   const dateStr = format(selectedDate, 'yyyy-MM-dd');
 
   const loadSession = async () => {
+    // Wait until a subject is selected to prevent creating orphan sessions
+    if (!selectedSubjectId) return;
+
     try {
       setLoading(true);
       const { session: sessionData } = await getSessionByDate(dateStr, selectedSubjectId);
