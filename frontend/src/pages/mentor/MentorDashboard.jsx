@@ -10,7 +10,8 @@ import {
   Loader2,
   Activity,
   Zap,
-  AlertCircle
+  AlertCircle,
+  FileSpreadsheet
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { Link } from 'react-router-dom';
