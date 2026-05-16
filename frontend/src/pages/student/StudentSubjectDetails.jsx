@@ -53,6 +53,18 @@ import Button from '../../components/ui/Button';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 
+const StatusBadge = ({ status, text }) => {
+  const styles = {
+    active: 'bg-cyber-neon/10 border-cyber-neon/50 text-cyber-neon',
+    'at-risk': 'bg-[#ff00ff]/10 border-[#ff00ff]/50 text-[#ff00ff]',
+  };
+  return (
+    <div className={clsx("px-3 py-1 border rounded-md text-[10px] font-black font-mono uppercase tracking-[0.2em]", styles[status])}>
+      {text}
+    </div>
+  );
+};
+
 export default function StudentSubjectDetails() {
   const { subjectCode } = useParams();
   const navigate = useNavigate();

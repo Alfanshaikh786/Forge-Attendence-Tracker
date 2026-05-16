@@ -41,12 +41,11 @@ router.get('/attendance-stats', requireAuth, ensureStudent, async (req, res) => 
         sub.id,
         sub.name,
         sub.code,
-        COUNT(s.id) as total,
+        COUNT(s.id) FILTER (WHERE s.date <= CURRENT_DATE OR a.id IS NOT NULL) as total,
         COUNT(a.id) FILTER (WHERE a.present = true) as present
       FROM public.subjects sub
       LEFT JOIN public.sessions s ON s.subject_id = sub.id
       LEFT JOIN public.attendance a ON a.session_id = s.id AND a.student_id = $1
-      WHERE (s.date <= CURRENT_DATE OR a.id IS NOT NULL)
       GROUP BY sub.id, sub.name, sub.code
       ORDER BY sub.name ASC
     `, [req.auth.user.studentId]);
