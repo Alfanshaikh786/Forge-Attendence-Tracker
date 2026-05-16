@@ -1,72 +1,85 @@
 import express from 'express';
-import { query } from '../db.js';
-import { requireAuth, requireMentor } from '../middleware/auth.js';
+import pool, { query } from '../db.js';
+import { requireAuth } from '../middleware/auth.js';
 import { requireSubjectAccess } from '../middleware/subjectAuth.js';
 
 const router = express.Router();
 
-// Middleware: Ensure mentor only
-router.use(requireAuth);
-router.use(requireMentor);
+// Middleware: Ensure user is mentor
+function ensureMentor(req, res, next) {
+  if (req.auth.user.role !== 'mentor') {
+    return res.status(403).json({ error: 'Only mentors can access this' });
+  }
+  next();
+}
 
 /**
- * 1. PUT /api/attendance/update/:id
- * Bulk update attendance for a session with audit logs
+ * PUT /api/attendance/update/:id
+ * Bulk update attendance for a specific session with audit trail.
  */
-router.put('/update/:id', requireSubjectAccess, async (req, res) => {
+router.put('/update/:id', requireAuth, ensureMentor, requireSubjectAccess, async (req, res) => {
+  const { id } = req.params;
+  const { attendance, remarks } = req.body;
+  const facultyName = req.auth.user.displayName;
+
+  if (!attendance || !Array.isArray(attendance)) {
+    return res.status(400).json({ error: 'Attendance records required' });
+  }
+
+  const client = await pool.connect();
+
   try {
-    const { id } = req.params; // sessionId
-    const { attendance, topic, remarks } = req.body;
-    const facultyName = req.auth.user.displayName;
+    await client.query('BEGIN');
 
-    // 1. Update session info if provided
-    if (topic || remarks) {
-      await query(
-        'UPDATE public.sessions SET topic = COALESCE($1, topic), remarks = COALESCE($2, remarks) WHERE id = $3',
-        [topic, remarks, id]
-      );
-    }
-
-    // 2. Process attendance updates
     for (const record of attendance) {
-      const { studentId, status } = record; // status is 'present' or 'absent'
-      const isPresent = status === 'present';
+      const studentId = record.studentId;
+      const isPresent = record.isPresent;
 
-      // Get current status for audit
-      const currentRes = await query(
+      // 1. Get old status for audit
+      const oldStatusRes = await client.query(
         'SELECT present FROM public.attendance WHERE student_id = $1 AND session_id = $2',
         [studentId, id]
       );
+      const oldStatus = oldStatusRes.rows.length > 0 ? oldStatusRes.rows[0].present : null;
 
-      const previousStatus = currentRes.rows.length > 0 ? currentRes.rows[0].present : null;
+      // 2. Insert or Update attendance
+      await client.query(
+        `INSERT INTO public.attendance (student_id, session_id, present, marked_by, version)
+         VALUES ($1, $2, $3, $4, 1)
+         ON CONFLICT (student_id, session_id) 
+         DO UPDATE SET 
+           present = $3, 
+           marked_by = $4, 
+           version = attendance.version + 1,
+           last_edited_by = $4`,
+        [studentId, id, isPresent, facultyName]
+      );
 
-      if (previousStatus !== isPresent) {
-        // Update or Insert
-        await query(
-          `INSERT INTO public.attendance (student_id, session_id, present, marked_by, version)
-           VALUES ($1, $2, $3, $4, 1)
-           ON CONFLICT (student_id, session_id) 
-           DO UPDATE SET 
-             present = $3, 
-             marked_by = $4, 
-             version = attendance.version + 1,
-             last_edited_by = $4`,
-          [studentId, id, isPresent, facultyName]
-        );
-
-        // Create Audit Log
-        await query(
-          `INSERT INTO public.attendance_audit (session_id, student_id, previous_status, new_status, changed_by, remarks)
+      // 3. Create Audit Log if status changed
+      if (oldStatus !== isPresent) {
+        await client.query(
+          `INSERT INTO public.attendance_audit 
+           (session_id, student_id, old_status, new_status, edited_by, remarks)
            VALUES ($1, $2, $3, $4, $5, $6)`,
-          [id, studentId, previousStatus, isPresent, facultyName, remarks || 'Bulk Edit']
+          [id, studentId, oldStatus, isPresent, facultyName, remarks || 'Manual update']
         );
       }
     }
 
-    return res.json({ success: true, message: 'Attendance records synchronized and audited.' });
+    // 4. Update session-level metadata
+    await client.query(
+      'UPDATE public.sessions SET remarks = $1, last_edited_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [remarks, id]
+    );
+
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'Attendance records synchronized' });
   } catch (error) {
-    console.error('Error in bulk attendance update:', error);
-    return res.status(500).json({ error: 'Failed to update attendance records.' });
+    await client.query('ROLLBACK');
+    console.error('[AttendanceMgmt] Bulk update failure:', error);
+    res.status(500).json({ error: 'Failed to update attendance records' });
+  } finally {
+    client.release();
   }
 });
 
