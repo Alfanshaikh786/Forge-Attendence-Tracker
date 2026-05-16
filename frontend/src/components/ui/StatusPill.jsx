@@ -21,8 +21,8 @@ export const StatusPill = ({ status = 'info', className, label }) => {
   const key = map(status);
 
   const styles = {
-    present: 'bg-success/20 text-success border-success/30',
-    absent: 'bg-danger/20 text-danger border-danger/30',
+    present: 'bg-[#00ff00]/10 text-[#00ff00] border-[#00ff00]/40 shadow-[0_0_8px_rgba(0,255,0,0.2)]',
+    absent: 'bg-[#ff00ff]/10 text-[#ff00ff] border-[#ff00ff]/40 shadow-[0_0_8px_rgba(255,0,255,0.2)]',
     warning: 'bg-warning/20 text-warning border-warning/30',
     info: 'bg-info/20 text-info border-info/30',
   };
