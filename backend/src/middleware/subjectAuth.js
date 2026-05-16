@@ -73,7 +73,9 @@ export async function requireSubjectAccess(req, res, next) {
   } catch (error) {
     console.error('[SubjectAuth] CRITICAL ERROR:', error);
     // FALLBACK: If the middleware itself crashes, we MUST NOT block the request
-    // or return a confusing 500. Let's just allow it and log.
     return next();
   }
 }
+
+// Deployment Anchor: 2026-05-16T16:20:00 (Forcing Render Redeploy)
+

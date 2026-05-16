@@ -360,6 +360,9 @@ router.get('/sessions/:date', requireAuth, requireMentor, async (req, res) => {
   try {
     const { date } = req.params;
     const { subjectId } = req.query;
+    if (!subjectId) {
+      return res.status(400).json({ error: 'Subject ID is required for session operations.' });
+    }
     const facultyId = req.auth.user.facultyId;
     const sessionDate = new Date(date).toISOString().split('T')[0];
 
@@ -384,14 +387,9 @@ router.get('/sessions/:date', requireAuth, requireMentor, async (req, res) => {
     let sessionResult = await query(queryText, params);
     
     if (sessionResult.rows.length === 0) {
-      // For auto-creation, if subjectId is provided, use it
-      const insertText = subjectId 
-        ? 'INSERT INTO public.sessions (date, topic, month_number, subject_id) VALUES ($1, $2, $3, $4) RETURNING *'
-        : 'INSERT INTO public.sessions (date, topic, month_number) VALUES ($1, $2, $3) RETURNING *';
-      
-      const insertParams = [sessionDate, 'New Session', new Date(date).getMonth() + 1];
-      if (subjectId) insertParams.push(subjectId);
-
+      // For auto-creation, subjectId is now mandatory
+      const insertText = 'INSERT INTO public.sessions (date, topic, month_number, subject_id) VALUES ($1, $2, $3, $4) RETURNING *';
+      const insertParams = [sessionDate, 'New Session', new Date(date).getMonth() + 1, subjectId];
       sessionResult = await query(insertText, insertParams);
     }
 
