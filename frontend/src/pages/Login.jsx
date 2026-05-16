@@ -3,7 +3,7 @@ import { Flame, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { login } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
-import { Card } from '../components/ui/card';
+import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 
