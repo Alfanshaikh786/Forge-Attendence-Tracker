@@ -71,7 +71,7 @@ export const MentorDashboard = () => {
         {/* System Header */}
         <section className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
-            <h2 className="font-mono text-3xl md:text-4xl font-bold text-cyber-neon tracking-widest uppercase">
+            <h2 className="font-mono text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#00ff00] to-cyan-400 tracking-widest uppercase drop-shadow-[0_0_10px_rgba(0,255,0,0.4)]">
               SYSTEM OVERVIEW
             </h2>
             <p className="text-cyber-text-secondary text-sm font-mono mt-2">
@@ -83,12 +83,12 @@ export const MentorDashboard = () => {
             className="flex items-center gap-2 px-4 py-2 border border-cyber-border rounded-sm bg-cyber-surface/50"
           >
             <div className={`w-2 h-2 rounded-full ${
-              systemStatus === 'active' ? 'bg-cyber-neon animate-pulse-neon' :
+              systemStatus === 'active' ? 'bg-[#00ff00] shadow-[0_0_8px_rgba(0,255,0,0.8)] animate-pulse' :
               systemStatus === 'delayed' ? 'bg-warning-color animate-pulse' :
               'bg-gray-600'
             }`} />
             <span className="font-mono text-xs text-cyber-text-secondary uppercase tracking-wider">
-              Status: {systemStatus.toUpperCase()}
+              Status: <span className={systemStatus === 'active' ? 'text-[#00ff00] font-bold drop-shadow-[0_0_5px_rgba(0,255,0,0.5)]' : ''}>{systemStatus.toUpperCase()}</span>
             </span>
           </div>
         </section>
@@ -142,7 +142,7 @@ export const MentorDashboard = () => {
           >
             {data.today.total > 0 || data.today.sessionTopic !== 'No session today' ? (
               <>
-                <h3 className="text-xl font-mono font-bold text-cyber-neon mb-3 uppercase tracking-wide">
+                <h3 className="text-xl font-mono font-bold text-[#00ff00] drop-shadow-[0_0_8px_rgba(0,255,0,0.5)] mb-3 uppercase tracking-wide">
                   {data.today.sessionTopic}
                 </h3>
                 <p className="text-cyber-text-secondary text-sm font-mono mb-6">
@@ -186,7 +186,7 @@ export const MentorDashboard = () => {
               <div className="space-y-4">
                 <div className="flex justify-between items-end mb-4">
                   <div>
-                    <span className="text-4xl font-mono font-bold text-cyber-neon tabular-nums">
+                    <span className="text-4xl font-mono font-bold text-[#00ff00] drop-shadow-[0_0_10px_rgba(0,255,0,0.6)] tabular-nums">
                       {data.today.present}
                     </span>
                     <span className="text-cyber-text-secondary text-sm font-mono ml-2">
@@ -196,7 +196,7 @@ export const MentorDashboard = () => {
                   <div className="text-right">
                     <div className={`text-2xl font-mono font-bold ${
                       data.today.present / data.today.total > 0.8 
-                        ? 'text-cyber-neon' 
+                        ? 'text-[#00ff00] drop-shadow-[0_0_8px_rgba(0,255,0,0.5)]' 
                         : 'text-warning-color'
                     } tabular-nums`}>
                       {Math.round((data.today.present / data.today.total) * 100)}%
@@ -237,8 +237,8 @@ export const MentorDashboard = () => {
                     {item.label}
                   </span>
                   <span className={`font-mono font-bold text-sm ${
-                    item.status === 'success' ? 'text-cyber-neon' :
-                    item.status === 'danger' ? 'text-danger-color' :
+                    item.status === 'success' ? 'text-[#00ff00] drop-shadow-[0_0_5px_rgba(0,255,0,0.4)]' :
+                    item.status === 'danger' ? 'text-[#ff00ff] drop-shadow-[0_0_5px_rgba(255,0,255,0.4)]' :
                     'text-cyber-text'
                   }`}>
                     {item.value}
@@ -260,7 +260,7 @@ export const MentorDashboard = () => {
               <div className="space-y-3 max-h-48 overflow-y-auto">
                 {data.today.absentStudents.slice(0, 5).map((student, idx) => (
                   <div key={idx} className="flex gap-3 items-center pb-3 border-b border-cyber-border/30 last:border-0 hover:bg-cyber-neon/5 px-2 py-1 rounded transition-colors">
-                    <div className="w-1 h-1 rounded-full bg-danger-color flex-shrink-0" />
+                    <div className="w-1 h-1 rounded-full bg-[#ff00ff] shadow-[0_0_5px_rgba(255,0,255,0.8)] flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-mono text-cyber-text truncate">
                         {student.fullName}
@@ -269,7 +269,7 @@ export const MentorDashboard = () => {
                         {student.usn}
                       </span>
                     </div>
-                    <span className="text-xs font-mono px-2 py-1 bg-danger-color/10 border border-danger-color/30 text-danger-color rounded-sm">
+                    <span className="text-xs font-mono px-2 py-1 bg-[#ff00ff]/10 border border-[#ff00ff]/50 text-[#ff00ff] shadow-[0_0_8px_rgba(255,0,255,0.3)] rounded-sm">
                       ABSENT
                     </span>
                   </div>
