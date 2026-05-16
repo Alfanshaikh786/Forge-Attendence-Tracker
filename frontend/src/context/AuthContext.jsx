@@ -36,6 +36,8 @@ export function AuthProvider({ children }) {
   const logout = () => {
     apiLogout();
     setUser(null);
+    window.location.href = '/login';
+    window.location.reload();
   };
 
   return (

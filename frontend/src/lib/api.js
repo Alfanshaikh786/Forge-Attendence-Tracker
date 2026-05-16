@@ -23,10 +23,14 @@ export async function apiRequest(endpoint, options = {}) {
     headers,
   });
 
-  if (response.status === 401 && !endpoint.includes('/auth/login')) {
-    localStorage.removeItem('forgetrack_token');
-    window.location.href = '/login?error=Session+expired';
-    throw new Error('Session expired');
+  if (response.status === 401) {
+    if (!endpoint.includes('/auth/login')) {
+      localStorage.removeItem('forgetrack_token');
+      window.location.href = '/login?error=Session+expired';
+      throw new Error('Session expired');
+    }
+    // For login, let it fall through to the general error handler below
+    // which will extract the actual { error: 'Invalid credentials' } from the body
   }
 
   if (!response.ok) {
